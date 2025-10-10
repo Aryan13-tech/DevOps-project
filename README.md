@@ -47,3 +47,88 @@ The main goal is to **build an end-to-end DevOps solution** that automates deplo
 
 ### 🔁 High-Level Architecture  
 
++----------------+ +----------------+ +------------------+ +----------------+ +---------------------+
+| Developer |----->| GitHub Repo |----->| CI Server |----->| Docker Hub |----->| Production Server |
+| (git push) | | (Webhook) | | (Build & Test) | | (Image Storage)| | (Deploy) |
++----------------+ +----------------+ +------------------+ +----------------+ +---------------------+
+
+
+### ⚙️ Step-by-Step Flow  
+
+1. **Code Commit** → Developer pushes code changes to `main` branch.  
+2. **Trigger Pipeline** → GitHub webhook triggers Jenkins or GitHub Actions.  
+3. **Build & Test (CI)** → The CI server pulls the latest code, builds, and runs automated tests.  
+4. **Containerize** → Docker packages the app into a container image.  
+5. **Push to Registry** → The image is version-tagged and pushed to Docker Hub.  
+6. **Deploy (CD)** → The latest image is pulled on the production server, and the container is restarted for zero-downtime deployment.  
+7. **Notify** → Build and deployment notifications are sent (via Slack or email).  
+
+---
+
+## 🗂️ 5. Project Structure  
+
+.
+├── app/ # Source code for the sample web application
+│ ├── src/
+│ ├── package.json
+│ └── ...
+├── .github/workflows/ # GitHub Actions workflow config (if used)
+│ └── main.yml
+├── Dockerfile # Docker image configuration
+├── Jenkinsfile # Jenkins pipeline-as-code definition
+└── README.md # Project documentation
+
+
+---
+
+## ⚙️ 6. Getting Started  
+
+### 🔧 Prerequisites  
+Make sure you have the following:  
+- Git installed locally  
+- GitHub account  
+- Docker Hub account  
+- Docker installed on your local system  
+- Access to a production server (AWS EC2 or local VM)  
+- Jenkins server (if using Jenkins-based automation)
+
+### 🧩 Setup Instructions  
+
+1. **Clone the Repository**
+   ```bash
+   git clone <your-repository-url>
+   cd <repository-name>
+
+2.Configure Environment Variables:
+Set up the following secrets in Jenkins or GitHub Actions:
+| Variable             | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `DOCKERHUB_USERNAME` | Your Docker Hub username                        |
+| `DOCKERHUB_TOKEN`    | Your Docker Hub access token                    |
+| `SSH_PRIVATE_KEY`    | Private key for SSH access to production server |
+| `SERVER_HOST`        | Production server IP or hostname                |
+| `SERVER_USER`        | Production server username                      |
+
+3.Run the Pipeline:
+
+Run the Pipeline
+Make a small code change in the app/ directory.
+Commit and push it to the main branch.
+
+git add .
+git commit -m "feat: trigger CI/CD pipeline"
+git push origin main
+
+
+4. Monitor Execution :
+Open the Jenkins Dashboard or GitHub Actions → Actions tab.
+Watch the pipeline build, test, and deploy the application automatically.
+
+7. Conclusion
+
+This project successfully demonstrates the power of DevOps automation in modern software engineering.
+
+✅ Reduced deployment time from hours to minutes
+✅ Minimized human error with fully automated processes
+✅ Improved developer productivity and focus on innovation
+✅ Ensured consistent, reliable, and repeatable deployments
