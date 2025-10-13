@@ -120,7 +120,7 @@ By combining **GitHub, Jenkins, Docker, and AWS**, the project achieves **speed,
 ## 👨‍💻 9. Author
 
 **Developed by:** *Aryan Sarvaiya*  
-**GitHub:** [github.com/aryan-sarvaiya](https://github.com/aryan-sarvaiya)  
+**GitHub:** [github.com/aryan-sarvaiya](https://github.com/Aryan13-tech)  
 
 ---
 
