@@ -1,10 +1,6 @@
 # 🚀 Automated CI/CD Pipeline for **To-Do List Web Application Deployment**
 
-![CI/CD Workflow Banner](https://img.shields.io/badge/DevOps-CI%2FCD-blue?style=for-the-badge)  
-![Docker](https://img.shields.io/badge/Containerization-Docker-blue?style=for-the-badge&logo=docker)  
-![Jenkins](https://img.shields.io/badge/Automation-Jenkins-red?style=for-the-badge&logo=jenkins)  
-![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-black?style=for-the-badge&logo=githubactions)  
-![AWS](https://img.shields.io/badge/Deployment-AWS-orange?style=for-the-badge&logo=amazonaws)  
+
 
 ---
 
@@ -127,6 +123,14 @@ By combining **GitHub, Jenkins, Docker, and AWS**, the project achieves **speed,
 ## ⚖️ 10. License
 
 This project is licensed under the **MIT License** — feel free to use, modify, and distribute with attribution.
+
+---
+
+![CI/CD Workflow Banner](https://img.shields.io/badge/DevOps-CI%2FCD-blue?style=for-the-badge)  
+![Docker](https://img.shields.io/badge/Containerization-Docker-blue?style=for-the-badge&logo=docker)  
+![Jenkins](https://img.shields.io/badge/Automation-Jenkins-red?style=for-the-badge&logo=jenkins)  
+![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-black?style=for-the-badge&logo=githubactions)  
+![AWS](https://img.shields.io/badge/Deployment-AWS-orange?style=for-the-badge&logo=amazonaws)  
 
 ---
 
