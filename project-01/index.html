@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364);
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideOut {
+            to { opacity: 0; transform: translateX(-100%); }
+        }
+
+        .task-item { animation: fadeInDown 0.3s ease-out; }
+        .task-item.removing { animation: slideOut 0.3s ease-in forwards; }
+
+        .task-item.completed span { text-decoration: line-through; color: #9ca3af; }
+        .task-item.completed .fa-circle { display: none; }
+        .task-item:not(.completed) .fa-check-circle { display: none; }
+
+        .countdown-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-feature-settings: "tnum";
+        }
+        
+        .glass-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .filter-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="w-full max-w-md mx-auto glass-container text-white rounded-xl shadow-2xl p-6 md:p-8 transform transition-all duration-500 opacity-0 -translate-y-4 relative z-10" id="app-container">
+        
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold mb-2">My Day's Tasks</h1>
+            <p id="current-date" class="text-sm text-gray-300 mb-2"></p>
+            <div id="countdown" class="countdown-timer text-lg font-medium text-blue-300 bg-black bg-opacity-20 rounded-lg px-3 py-1 inline-block">
+                --:--:--
+            </div>
+        </div>
+
+        <form id="task-form" class="flex items-center gap-3 mb-4">
+            <input 
+                type="text" 
+                id="task-input"
+                placeholder="Add a new task..."
+                class="flex-grow p-3 border-2 border-gray-500 rounded-lg bg-transparent text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                autocomplete="off"
+            >
+            <button 
+                type="submit"
+                class="bg-blue-600 text-white font-semibold px-5 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-transform transform hover:scale-105"
+            >
+                <i class="fas fa-plus mr-2"></i>Add
+            </button>
+        </form>
+
+        <div id="filters" class="flex justify-center gap-2 mb-4">
+            <button class="filter-btn active px-3 py-1 text-sm font-medium rounded-md transition bg-black bg-opacity-20 hover:bg-opacity-30" data-filter="all">All</button>
+            <button class="filter-btn px-3 py-1 text-sm font-medium rounded-md transition bg-black bg-opacity-20 hover:bg-opacity-30" data-filter="active">Active</button>
+            <button class="filter-btn px-3 py-1 text-sm font-medium rounded-md transition bg-black bg-opacity-20 hover:bg-opacity-30" data-filter="completed">Completed</button>
+        </div>
+
+        <div id="task-list" class="space-y-3">
+            <!-- Tasks will be dynamically inserted here -->
+        </div>
+        
+        <div class="text-center mt-6 text-sm font-medium text-gray-300" id="task-counter">
+            <!-- Counter will be updated here -->
+        </div>
+    </div>
+
+    <script>
+        // --- Particle Background Animation ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationFrameId;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            createParticles();
+        }
+
+        function createParticles() {
+            particles = [];
+            const numParticles = window.innerWidth < 768 ? 30 : 50;
+            for (let i = 0; i < numParticles; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 1.5 + 0.5,
+                    color: `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.2})`
+                });
+            }
+        }
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                const p1 = particles[i];
+                ctx.beginPath();
+                ctx.arc(p1.x, p1.y, p1.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p1.color;
+                ctx.fill();
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p2 = particles[j];
+                    const distance = Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+                    if (distance < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 - (distance / 120) * 0.3})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function updateParticles() {
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+            }
+        }
+
+        function animateParticles() {
+            updateParticles();
+            drawParticles();
+            animationFrameId = requestAnimationFrame(animateParticles);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        animateParticles();
+
+        // --- Core Application Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const appContainer = document.getElementById('app-container');
+            const taskForm = document.getElementById('task-form');
+            const taskInput = document.getElementById('task-input');
+            const taskList = document.getElementById('task-list');
+            const taskCounter = document.getElementById('task-counter');
+            const countdownDisplay = document.getElementById('countdown');
+            const currentDateDisplay = document.getElementById('current-date');
+            const filterContainer = document.getElementById('filters');
+            
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            let currentFilter = 'all';
+
+            const updateClock = () => {
+                const now = new Date();
+                const endOfDay = new Date(now);
+                endOfDay.setHours(23, 59, 59, 999);
+                const totalSeconds = Math.floor((endOfDay - now) / 1000);
+                let h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+                let m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+                let s = String(totalSeconds % 60).padStart(2, '0');
+                countdownDisplay.textContent = `${h}:${m}:${s}`;
+                currentDateDisplay.textContent = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            };
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            const saveTasks = () => localStorage.setItem('tasks', JSON.stringify(tasks));
+
+            const renderTasks = () => {
+                const filteredTasks = tasks.filter(task => {
+                    if (currentFilter === 'active') return !task.completed;
+                    if (currentFilter === 'completed') return task.completed;
+                    return true;
+                });
+
+                if (filteredTasks.length === 0) {
+                     taskList.innerHTML = `
+                        <div class="text-center py-8 text-gray-300">
+                            <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p class="mt-4 font-semibold">${currentFilter === 'completed' ? 'No completed tasks here!' : 'All tasks done! Add a new one or choose another filter.'}</p>
+                        </div>`;
+                } else {
+                    taskList.innerHTML = filteredTasks.map(task => `
+                        <div class="task-item flex items-center justify-between p-3 bg-black bg-opacity-20 rounded-lg border border-gray-600 transition-all hover:shadow-lg hover:border-blue-400 ${task.completed ? 'completed opacity-60' : ''}" data-id="${task.id}">
+                            <div class="flex items-center gap-3">
+                                <button class="toggle-btn text-xl text-green-400">
+                                    <i class="far fa-circle"></i><i class="fas fa-check-circle"></i>
+                                </button>
+                                <span class="font-medium">${task.text}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button class="delete-btn text-gray-400 hover:text-red-400 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                updateCounter();
+            };
+
+            const updateCounter = () => {
+                const remainingTasks = tasks.filter(task => !task.completed).length;
+                taskCounter.textContent = `${remainingTasks} tasks remaining`;
+            };
+
+            const addTask = (text) => {
+                if(text.trim() === '') return;
+                tasks.unshift({ id: Date.now(), text: text.trim(), completed: false });
+                saveAndRender();
+            };
+            
+            const deleteTask = (id) => {
+                const taskElement = taskList.querySelector(`[data-id='${id}']`);
+                if (taskElement) {
+                    taskElement.classList.add('removing');
+                    setTimeout(() => {
+                        tasks = tasks.filter(task => task.id !== id);
+                        saveAndRender();
+                    }, 300);
+                }
+            };
+            
+            const toggleTask = (id) => {
+                const task = tasks.find(task => task.id === id);
+                if (task) {
+                    const wasCompleted = task.completed;
+                    task.completed = !task.completed;
+                    const remainingTasks = tasks.filter(t => !t.completed).length;
+                    if (!wasCompleted && remainingTasks === 0 && tasks.length > 0) {
+                        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+                    }
+                    saveAndRender();
+                }
+            };
+
+            const saveAndRender = () => {
+                saveTasks();
+                renderTasks();
+            };
+            
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                addTask(taskInput.value);
+                taskInput.value = '';
+            });
+
+            taskList.addEventListener('click', (e) => {
+                const taskItem = e.target.closest('.task-item');
+                if (!taskItem) return;
+                const id = parseInt(taskItem.dataset.id);
+                if (e.target.closest('.delete-btn')) {
+                    deleteTask(id);
+                } else if (e.target.closest('.toggle-btn')) {
+                    toggleTask(id);
+                }
+            });
+            
+            filterContainer.addEventListener('click', (e) => {
+                if (e.target.matches('.filter-btn')) {
+                    document.querySelector('.filter-btn.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    currentFilter = e.target.dataset.filter;
+                    renderTasks();
+                }
+            });
+            
+            setTimeout(() => appContainer.classList.remove('opacity-0', '-translate-y-4'), 100);
+            
+            renderTasks();
+        });
+    </script>
+</body>
+</html>
+
