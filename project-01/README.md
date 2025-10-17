@@ -6,6 +6,7 @@
 
 ## 📖 1. Introduction
 
+
 This project demonstrates a **fully automated Continuous Integration and Continuous Deployment (CI/CD) pipeline** for deploying a **To-Do List web application**.
 
 The pipeline is designed to overcome the challenges of **manual, time-consuming, and error-prone software delivery** by automating every stage — from **code commit to production deployment**.
