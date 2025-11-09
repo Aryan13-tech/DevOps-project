@@ -11,6 +11,7 @@ This project demonstrates a **fully automated Continuous Integration and Continu
 
 The pipeline is designed to overcome the challenges of **manual, time-consuming, and error-prone software delivery** by automating every stage — from **code commit to production deployment**.
 
+
 By applying **DevOps principles**, the project ensures faster, more reliable, and repeatable delivery for a simple yet functional To-Do List app that helps users create, update, and manage daily tasks efficiently.
 
 > 💡 *Inspired by the Global Professional Internship (GPI) Program problem statement*, focusing on efficient and scalable web application delivery for modern business needs.
