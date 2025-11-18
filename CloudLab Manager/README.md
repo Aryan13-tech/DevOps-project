@@ -7,7 +7,6 @@ A simple DevOps project to create, manage, and delete cloud environments using D
 ## 📘 Overview
 
 
-
 CloudLab Manager is a web-based application that helps users create and manage temporary environments (containers) dynamically.
 It uses FastAPI as the backend, PostgreSQL for storage, and Docker to run environments automatically.
 
