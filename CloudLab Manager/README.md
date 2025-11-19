@@ -1,145 +1,142 @@
-
 ## 🌩️ CloudLab Manager
 
-A simple DevOps project to create, manage, and delete cloud environments using Docker and FastAPI.
+ A full-stack DevOps project that allows users to create, manage, and delete Docker-based development environments through a clean web interface.
+CloudLab Manager demonstrates real-world DevOps concepts including container automation, API development, and deployment workflows.
 
-
----
 
 ## 📘 Overview
-
-
-CloudLab Manager is a web-based application that helps users create and manage temporary environments (containers) dynamically.
-It uses FastAPI as the backend, PostgreSQL for storage, and Docker to run environments automatically.
-
-The project also includes Terraform to deploy the entire system on AWS EC2, demonstrating practical DevOps and Cloud Computing concepts.
-
 ---
+ CloudLab Manager is a web platform where users can dynamically generate isolated environments (Docker containers) using an intuitive UI.
+The backend automatically generates Dockerfiles, builds images, runs containers, and provides APIs to manage their lifecycle.
+
+🔹 Fully automated environment creation
+🔹 Modern Flask backend with Docker SDK
+🔹 Responsive dashboard UI (updated)
+🔹 Optional JSON/SQLite storage
+🔹 Extensible DevOps-ready architecture
+
 
 ## ⚙️ Tech Stack
+🖥️ Frontend
 
-Frontend: HTML, CSS, JavaScript
+HTML5
 
-Backend: FastAPI (Python)
+CSS3
 
-Database: PostgreSQL
+JavaScript (Vanilla JS)
 
-Containerization: Docker, Docker Compose
+Fetch API (for calling Flask APIs)
 
-Infrastructure as Code: Terraform (AWS EC2)
+🔥 Backend
 
-Monitoring (optional): Prometheus, Grafana
+Python 3.x
 
+Flask
+
+Docker SDK for Python
+
+JSON / SQLite (optional database)
+
+🐳 DevOps & Tools
+
+Docker Engine
+
+Docker Compose
+
+Git
+
+Linux / Shell scripting
 ---
 
 ## 🧩 Features
 
-Create and delete containerized environments dynamically
-
-Store environment details in a database
-
-Simple and user-friendly interface
-
-Deploy entire project on AWS using Terraform
-
-Demonstrates DevOps automation and cloud deployment
+✔ Create Docker environments dynamically
+✔ Auto-generate Dockerfiles based on user input
+✔ Build Docker images from UI
+✔ Run, stop, delete containers
+✔ View container logs
+✔ Store metadata in JSON or SQLite
+✔ Clean, updated UI for Dashboard
+✔ Extendable for cloud deployment (AWS / Terraform optional)
 
 ---
 
 ## 🏗️ Project Structure
-
-```bash
+ ```bash
 cloudlab-manager/
 │
 ├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── db.py
-│   │   ├── models.py
-│   │   ├── crud.py
-│   │   └── docker_ops.py
+│   ├── app.py
+│   ├── docker_service.py
+│   ├── file_service.py
+│   ├── db.json        # optional storage
+│   ├── Docker/
+│   │     └── generated/
 │   ├── requirements.txt
-│   └── Dockerfile
 │
 ├── frontend/
-│   └── index.html
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
 │
-├── infra/
-│   ├── main.tf
-│   ├── variables.tf
-│   └── provider.tf
-│
-└── docker-compose.yml
+└── README.md
 ```
+---
+## 📸 UI Preview 
+
+The UI is designed to look clean, similar to modern dashboards:
+
+Sidebar-free minimal layout
+
+“Create Docker Environment” section (left)
+
+“Running Containers” section (right)
+
+Action buttons (Start/Stop/Delete/Logs)
+
+Logout button and CloudLab branding
+---
+
+## 🚀 How to Run Locally
+🧰 Prerequisites
+
+Python 3.10+
+
+Docker Engine installed
+
+Git installed
 
 ---
 
-## 🚀 How to Run
-
-### 🧰 Prerequisites
-
-Docker & Docker Compose installed
-
-Python 3.11+ installed
-
-AWS account (for Terraform deployment)
-
----
-
-## 🔧 Local Setup
-
+## 🔧 Setup Steps
+1️⃣ Clone the repository
 ```bash
-# Clone the repository
 git clone https://github.com/<your-username>/cloudlab-manager.git
 cd cloudlab-manager
-
-# Start backend and database
-docker-compose up --build
 ```
-Now open frontend/index.html in your browser and use the app.
-
-## ✅ Example:
-
-Enter image → nginx:latest
-
-Enter port → 8081
-
-Click Create Environment
-
-Then open:
-👉 http://localhost:8081 to see your container running.
-
---- 
-
-## ☁️ Cloud Deployment (Terraform + AWS)
-
+2️⃣ Setup backend
 ```bash
-cd infra
-terraform init
-terraform apply
+cd backend
+python -m venv .venv
+source .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+3️⃣ Start backend
+```bash
+python app.py
+```
+Backend will run at:
+👉 http://localhost:8000
+
+4️⃣ Run frontend
+
+Open:
+```bash
+frontend/index.html
 ```
 
-Terraform will:
-
-Create an EC2 instance
-
-Install Docker and deploy the project automatically
-
-After deployment, visit:
-👉 http://<EC2-public-IP>:8000
-
 ---
 
-## 🧠 Future Improvements
 
-Add authentication (login system)
-
-Auto-delete expired environments
-
-Add monitoring dashboard with Grafana
-
-Support Kubernetes instead of Docker
-
----
 
 
