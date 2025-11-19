@@ -17,7 +17,7 @@ The backend automatically generates Dockerfiles, builds images, runs containers,
 
 
 ## ⚙️ Tech Stack
-🖥️ Frontend
+### 🖥️ Frontend
 
 HTML5
 
@@ -27,7 +27,7 @@ JavaScript (Vanilla JS)
 
 Fetch API (for calling Flask APIs)
 
-🔥 Backend
+### 🔥 Backend
 
 Python 3.x
 
@@ -37,7 +37,7 @@ Docker SDK for Python
 
 JSON / SQLite (optional database)
 
-🐳 DevOps & Tools
+### 🐳 DevOps & Tools
 
 Docker Engine
 
