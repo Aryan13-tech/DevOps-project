@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CloudLab Manager Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+    body { font-family:'Inter',sans-serif; background:#f8f9fb; min-height:100vh; }
+    .card { background:#fff; border-radius:.75rem; box-shadow:0 4px 6px rgba(0,0,0,.06); border:1px solid #e5e7eb; padding:1.5rem; }
+    .action-button { transition: all .18s; padding:.5rem 1rem; border-radius:.5rem; font-weight:500; line-height:1; }
+    .btn-primary { background:#2b7cff; color:#fff; }
+    .btn-primary:hover { background:#1e62cc; }
+    .btn-secondary { background:#f3f4f6; color:#4b5563; }
+    #log-content { white-space:pre; font-family:monospace; height:300px; overflow-y:scroll; background:#1f2937; color:#f9fafb; padding:1rem; border-radius:.5rem; }
+    /* Basic modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:60; }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <svg class="w-8 h-8 text-[#2b7cff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+        </svg>
+        <h1 class="text-2xl font-bold text-gray-900">CloudLab Manager</h1>
+        <span class="text-sm font-medium text-gray-500 hidden sm:inline-block">/ Dashboard</span>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="open-login" class="action-button btn-secondary text-sm">Login / Register</button>
+        <button id="logout-button" class="action-button btn-secondary text-sm hidden">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left: Create -->
+      <section class="lg:col-span-1">
+        <div class="card h-full">
+          <h2 class="text-xl font-semibold text-gray-900 mb-6 border-b pb-3">Create Docker Environment</h2>
+          <form id="create-container-form" class="space-y-5">
+            <div>
+              <label for="docker-image" class="block text-sm font-medium text-gray-700 mb-1">Docker Image</label>
+              <select id="docker-image" required class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#2b7cff] focus:border-[#2b7cff]">
+                <option value="ubuntu:latest">ubuntu:latest (Default)</option>
+                <option value="node:18-alpine">node:18-alpine</option>
+                <option value="python:3.10-slim">python:3.10-slim</option>
+                <option value="nginx:latest">nginx:latest</option>
+                <option value="redis:latest">redis:latest</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="cpu-limit" class="block text-sm font-medium text-gray-700 mb-1">CPU Limit</label>
+                <select id="cpu-limit" required class="w-full border border-gray-300 rounded-lg p-2.5">
+                  <option value="1">1 Core</option>
+                  <option value="2">2 Cores</option>
+                  <option value="4">4 Cores</option>
+                </select>
+              </div>
+              <div>
+                <label for="ram-limit" class="block text-sm font-medium text-gray-700 mb-1">RAM Limit</label>
+                <select id="ram-limit" required class="w-full border border-gray-300 rounded-lg p-2.5">
+                  <option value="512m">512 MB</option>
+                  <option value="1g">1 GB</option>
+                  <option value="2g">2 GB</option>
+                  <option value="4g">4 GB</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label for="commands" class="block text-sm font-medium text-gray-700 mb-1">Initial Commands (optional)</label>
+              <textarea id="commands" rows="4" placeholder="e.g., /bin/bash -c 'echo Hello World'" class="w-full border border-gray-300 rounded-lg p-2.5"></textarea>
+            </div>
+            <div class="flex space-x-4 pt-2">
+              <button type="submit" id="create-button" class="action-button btn-primary flex-grow text-base">Create Environment</button>
+              <button type="button" id="build-new-button" class="action-button btn-secondary text-base">Build New</button>
+            </div>
+          </form>
+          <div id="message-box" class="mt-4 p-3 hidden rounded-lg text-sm" role="alert"></div>
+        </div>
+      </section>
+
+      <!-- Right: Running Containers -->
+      <section class="lg:col-span-2">
+        <div class="card">
+          <h2 class="text-xl font-semibold text-gray-900 mb-6 border-b pb-3">Running Containers</h2>
+
+          <div id="loading-indicator" class="text-center py-8 text-gray-500 hidden">
+            <svg class="animate-spin h-5 w-5 mr-3 inline-block text-[#2b7cff]" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading containers...
+          </div>
+
+          <div id="containers-table-container" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">Container ID</th>
+                  <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                  <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="containers-list" class="bg-white divide-y divide-gray-200">
+                <tr id="empty-state">
+                  <td colspan="4" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                    No running containers found. Create one to get started!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Logs Modal -->
+  <div id="logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden z-50 transition-opacity flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform transition-all">
+      <div class="p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">Container Logs: <span id="modal-container-name" class="font-mono text-base text-[#2b7cff]"></span></h3>
+          <button id="close-modal" class="text-gray-400 hover:text-gray-600 transition">✕</button>
+        </div>
+        <div id="log-content-wrapper">
+          <pre id="log-content" class="w-full text-xs"></pre>
+          <div id="log-loading-indicator" class="text-center py-4 text-gray-500 hidden">Fetching logs...</div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button id="modal-close-button" class="action-button btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login/Register Modal (shared) -->
+  <div id="auth-modal" class="modal-backdrop hidden">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md">
+      <h3 id="auth-title" class="text-lg font-semibold mb-3">Login</h3>
+
+      <div id="auth-msg" class="text-sm text-red-600 mb-2 hidden"></div>
+
+      <input id="auth-username" class="w-full border p-2 rounded mb-2" placeholder="username" />
+      <input id="auth-password" type="password" class="w-full border p-2 rounded mb-4" placeholder="password" />
+
+      <div class="flex items-center space-x-2">
+        <button id="auth-submit" class="action-button btn-primary flex-grow">Login</button>
+        <button id="auth-toggle" class="action-button btn-secondary">Switch to Register</button>
+      </div>
+
+      <div class="text-xs text-gray-500 mt-3">Tip: register a new user, then login to create containers.</div>
+    </div>
+  </div>
+
+  <script>
+    // --- Config ---
+    const API_BASE_URL = ''; // empty -> same origin
+    const REFRESH_INTERVAL = 5000;
+
+    // --- DOM references ---
+    const containerList = document.getElementById('containers-list');
+    const form = document.getElementById('create-container-form');
+    const messageBox = document.getElementById('message-box');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const logsModal = document.getElementById('logs-modal');
+    const logContent = document.getElementById('log-content');
+    const modalContainerName = document.getElementById('modal-container-name');
+    const logLoadingIndicator = document.getElementById('log-loading-indicator');
+    const createButton = document.getElementById('create-button');
+
+    const authModal = document.getElementById('auth-modal');
+    const authTitle = document.getElementById('auth-title');
+    const authUsername = document.getElementById('auth-username');
+    const authPassword = document.getElementById('auth-password');
+    const authSubmit = document.getElementById('auth-submit');
+    const authToggle = document.getElementById('auth-toggle');
+    const authMsg = document.getElementById('auth-msg');
+    const openLogin = document.getElementById('open-login');
+    const logoutButton = document.getElementById('logout-button');
+
+    let authMode = 'login'; // or 'register'
+
+    // --- Utilities ---
+    function setAuthToken(token) {
+      if (token) {
+        localStorage.setItem('CLOUDLAB_TOKEN', token);
+        logoutButton.classList.remove('hidden');
+        openLogin.classList.add('hidden');
+      } else {
+        localStorage.removeItem('CLOUDLAB_TOKEN');
+        logoutButton.classList.add('hidden');
+        openLogin.classList.remove('hidden');
+      }
+    }
+    function getAuthToken() { return localStorage.getItem('CLOUDLAB_TOKEN') || null; }
+
+    function showMessage(message, type='success') {
+      messageBox.textContent = message;
+      messageBox.className = 'mt-4 p-3 rounded-lg text-sm block';
+      if (type === 'success') messageBox.classList.add('bg-green-100','text-green-800');
+      else if (type === 'error') messageBox.classList.add('bg-red-100','text-red-800');
+      else messageBox.classList.add('bg-blue-100','text-blue-800');
+      setTimeout(()=> messageBox.classList.add('hidden'), 5000);
+    }
+
+    async function fetchWithRetry(url, options={}, retries=3) {
+      // attach auth header if present
+      const token = getAuthToken();
+      options.headers = options.headers || {};
+      if (token) options.headers['Authorization'] = 'Bearer ' + token;
+      for (let i=0;i<retries;i++){
+        try {
+          const resp = await fetch(API_BASE_URL + url, options);
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(`HTTP ${resp.status}: ${text}`);
+          }
+          return resp;
+        } catch (err) {
+          if (i === retries-1) throw err;
+          const delay = Math.pow(2,i) * 1000;
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+    }
+
+    // --- Auth modal logic ---
+    openLogin.addEventListener('click', () => {
+      authMode = 'login';
+      authTitle.textContent = 'Login';
+      authSubmit.textContent = 'Login';
+      authToggle.textContent = 'Switch to Register';
+      authMsg.classList.add('hidden');
+      authUsername.value = '';
+      authPassword.value = '';
+      authModal.classList.remove('hidden');
+    });
+
+    authToggle.addEventListener('click', () => {
+      if (authMode === 'login') {
+        authMode = 'register';
+        authTitle.textContent = 'Register';
+        authSubmit.textContent = 'Register';
+        authToggle.textContent = 'Switch to Login';
+      } else {
+        authMode = 'login';
+        authTitle.textContent = 'Login';
+        authSubmit.textContent = 'Login';
+        authToggle.textContent = 'Switch to Register';
+      }
+      authMsg.classList.add('hidden');
+    });
+
+    authSubmit.addEventListener('click', async () => {
+      const u = authUsername.value.trim();
+      const p = authPassword.value;
+      if (!u || !p) {
+        authMsg.textContent = 'Enter username and password';
+        authMsg.classList.remove('hidden');
+        return;
+      }
+      authMsg.classList.add('hidden');
+      try {
+        if (authMode === 'login') {
+          const r = await fetch(API_BASE_URL + '/api/auth/login', {
+            method:'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ username: u, password: p })
+          });
+          if (!r.ok) {
+            const t = await r.text();
+            authMsg.textContent = 'Login failed: ' + t;
+            authMsg.classList.remove('hidden');
+            return;
+          }
+          const j = await r.json();
+          setAuthToken(j.token);
+          authModal.classList.add('hidden');
+          showMessage('Logged in as ' + j.username, 'success');
+          await fetchContainers();
+        } else {
+          const r = await fetch(API_BASE_URL + '/api/auth/register', {
+            method:'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ username: u, password: p })
+          });
+          if (!r.ok) {
+            const t = await r.text();
+            authMsg.textContent = 'Register failed: ' + t;
+            authMsg.classList.remove('hidden');
+            return;
+          }
+          authMsg.classList.add('hidden');
+          showMessage('Registered. Now login.', 'success');
+          authMode = 'login';
+          authTitle.textContent = 'Login';
+          authSubmit.textContent = 'Login';
+          authToggle.textContent = 'Switch to Register';
+        }
+      } catch (err) {
+        authMsg.textContent = 'Error: ' + err.message;
+        authMsg.classList.remove('hidden');
+      }
+    });
+
+    // close modal on backdrop click
+    authModal.addEventListener('click', (e) => {
+      if (e.target === authModal) authModal.classList.add('hidden');
+    });
+
+    logoutButton.addEventListener('click', () => {
+      setAuthToken(null);
+      showMessage('Logged out', 'info');
+      fetchContainers();
+    });
+
+    // --- Fetch / render containers ---
+    async function fetchContainers() {
+      loadingIndicator.classList.remove('hidden');
+      containerList.innerHTML = '';
+      const empty = document.getElementById('empty-state');
+      if (empty) empty.remove();
+
+      try {
+        const resp = await fetchWithRetry('/api/container/list');
+        const containers = await resp.json();
+        if (!containers || containers.length === 0) {
+          const tr = document.createElement('tr');
+          tr.id = 'empty-state';
+          tr.innerHTML = `<td colspan="4" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No running containers found. Create one to get started!</td>`;
+          containerList.appendChild(tr);
+          return;
+        }
+        containers.forEach(c => containerList.appendChild(createContainerRow(c)));
+      } catch (err) {
+        console.error('fetchContainers error', err);
+        showMessage('Failed to load containers. Are you logged in?', 'error');
+        const tr = document.createElement('tr');
+        tr.id = 'empty-state';
+        tr.innerHTML = `<td colspan="4" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No running containers found. Create one to get started!</td>`;
+        containerList.appendChild(tr);
+      } finally {
+        loadingIndicator.classList.add('hidden');
+      }
+    }
+
+    function createContainerRow(c) {
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-50';
+      row.innerHTML = `
+        <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${c.ContainerID.substring(0,12)}...</td>
+        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${c.Image}</td>
+        <td class="px-3 py-3 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${c.Status === 'running' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${c.Status}</span></td>
+        <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-right space-x-2">
+          <button data-name="${c.name}" data-action="logs" class="action-button btn-secondary text-xs">Logs</button>
+          ${c.Status === 'running' ? `<button data-name="${c.name}" data-action="stop" class="action-button bg-yellow-500 hover:bg-yellow-600 text-white text-xs">Stop</button>` : `<button data-name="${c.name}" data-action="start" class="action-button bg-green-500 hover:bg-green-600 text-white text-xs">Start</button>`}
+          <button data-name="${c.name}" data-action="delete" class="action-button bg-red-500 hover:bg-red-600 text-white text-xs">Delete</button>
+        </td>
+      `;
+      return row;
+    }
+
+    // handle create form
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      // require auth
+      if (!getAuthToken()) { showMessage('Please login to create containers', 'error'); return; }
+
+      createButton.disabled = true;
+      createButton.innerHTML = 'Creating...';
+      const data = {
+        image: document.getElementById('docker-image').value,
+        cpu_limit: document.getElementById('cpu-limit').value,
+        ram_limit: document.getElementById('ram-limit').value,
+        commands: document.getElementById('commands').value.trim() || null
+      };
+      try {
+        const resp = await fetchWithRetry('/api/container/create', {
+          method:'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        const json = await resp.json();
+        showMessage('Container created: ' + (json.name || 'n/a'), 'success');
+        form.reset();
+        await fetchContainers();
+      } catch (err) {
+        console.error('create error', err);
+        showMessage('Creation failed: ' + err.message, 'error');
+      } finally {
+        createButton.disabled = false;
+        createButton.innerHTML = 'Create Environment';
+      }
+    });
+
+    // action handlers
+    document.getElementById('containers-list').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn || !btn.dataset.action) return;
+      const { name, action } = btn.dataset;
+      if (action === 'logs') { await showLogsModal(name); return; }
+
+      // start/stop/delete require auth
+      if (!getAuthToken()) { showMessage('Please login first', 'error'); return; }
+
+      let url, method='POST', successMsg='';
+      if (action === 'start') { url = `/api/container/start/${name}`; successMsg = 'Starting...'; }
+      else if (action === 'stop') { url = `/api/container/stop/${name}`; successMsg = 'Stopping...'; }
+      else if (action === 'delete') { if (!confirm(`Delete ${name}?`)) return; url = `/api/container/delete/${name}`; method='DELETE'; successMsg = 'Deleted'; }
+
+      const original = btn.textContent;
+      btn.textContent = '...';
+      btn.disabled = true;
+      try {
+        await fetchWithRetry(url, { method });
+        showMessage(successMsg, 'info');
+        setTimeout(fetchContainers, 800);
+      } catch (err) {
+        console.error('action error', err);
+        showMessage(`Action failed: ${err.message}`, 'error');
+      } finally {
+        btn.textContent = original;
+        btn.disabled = false;
+      }
+    });
+
+    // logs modal
+    async function showLogsModal(name) {
+      modalContainerName.textContent = name;
+      logContent.textContent = '...';
+      logsModal.classList.remove('hidden');
+      logLoadingIndicator.classList.remove('hidden');
+      logContent.classList.add('hidden');
+      try {
+        const r = await fetchWithRetry(`/api/container/logs/${name}`);
+        const text = await r.text();
+        logContent.textContent = text;
+      } catch (err) {
+        logContent.textContent = 'Failed to fetch logs: ' + err.message;
+      } finally {
+        logLoadingIndicator.classList.add('hidden');
+        logContent.classList.remove('hidden');
+      }
+    }
+    document.getElementById('close-modal').addEventListener('click', () => logsModal.classList.add('hidden'));
+    document.getElementById('modal-close-button').addEventListener('click', () => logsModal.classList.add('hidden'));
+    logsModal.addEventListener('click', (e) => { if (e.target === logsModal) logsModal.classList.add('hidden'); });
+
+    // init
+    (function init() {
+      if (getAuthToken()) {
+        logoutButton.classList.remove('hidden');
+        openLogin.classList.add('hidden');
+      } else {
+        logoutButton.classList.add('hidden');
+        openLogin.classList.remove('hidden');
+      }
+      fetchContainers();
+      setInterval(fetchContainers, REFRESH_INTERVAL);
+    })();
+  </script>
+</body>
+</html>
