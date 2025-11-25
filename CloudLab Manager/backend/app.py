@@ -4,6 +4,7 @@ from flask_cors import CORS
 import os, jwt, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 SECRET_KEY = "CLOUDLAB_SECRET_123"
 
 app = Flask(__name__, static_folder="../frontend", static_url_path="/")
