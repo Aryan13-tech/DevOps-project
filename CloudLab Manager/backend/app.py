@@ -18,11 +18,16 @@ from docker_service import (
     safe_tag,
 )
 
+<<<<<<< HEAD
 # ---------------------------------------
 # Initialize Flask + Docker client
 # ---------------------------------------
 app = Flask(__name__)
 docker_client = docker.from_env()
+=======
+
+SECRET_KEY = "CLOUDLAB_SECRET_123"
+>>>>>>> 91649705aeffa9e57749c0f1ed0a67f5f69e3120
 
 # Store container records in RAM
 _CONTAINERS = []
