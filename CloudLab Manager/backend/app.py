@@ -1,168 +1,238 @@
-# app.py
-from flask import Flask, request, jsonify, send_from_directory, Response
-from flask_cors import CORS
-import os, jwt, datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+import os
+import docker
+from flask import Flask, request, jsonify, Response, send_from_directory
+from auth import (
+    token_required,
+    create_user,
+    verify_user,
+    generate_token,
+    get_current_user,
+)
+from docker_service import (
+    generate_dockerfile,
+    build_image,
+    run_container,
+    stop_container,
+    remove_container,
+    get_logs,
+    safe_tag,
+)
 
-SECRET_KEY = "CLOUDLAB_SECRET_123"
+# ---------------------------------------
+# Initialize Flask + Docker client
+# ---------------------------------------
+app = Flask(__name__)
+docker_client = docker.from_env()
 
-app = Flask(__name__, static_folder="../frontend", static_url_path="/")
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Store container records in RAM
+_CONTAINERS = []
 
-_USERS = {}          # in-memory user store
-_CONTAINERS = []     # in-memory container store
 
-def create_token(username):
-    payload = {
-        "user": username,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=6)
-    }
-    # PyJWT returns str for modern versions
-    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+# ----------------------------------------------------
+# Serve Frontend (STATIC FILES)
+# ----------------------------------------------------
+FRONTEND_FOLDER = os.path.join(os.path.dirname(__file__), "..", "Frontend")
 
-def require_auth(req):
-    auth_header = req.headers.get("Authorization", "")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None
-    token = auth_header.split(" ", 1)[1]
-    try:
-        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded.get("user")
-    except Exception:
-        return None
+@app.route("/")
+def home():
+    return send_from_directory(FRONTEND_FOLDER, "index.html")
 
-@app.route('/')
-def index():
-    return send_from_directory(app.static_folder, "index.html")
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory(FRONTEND_FOLDER, path)
 
-@app.route('/<path:p>')
-def staticfiles(p):
-    return send_from_directory(app.static_folder, p)
 
-# ---------------- AUTH ROUTES ---------------- #
-
+# ----------------------------------------------------
+# AUTH APIs
+# ----------------------------------------------------
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.json or {}
-    u = data.get("username")
-    p = data.get("password")
+    username = data.get("username")
+    password = data.get("password")
 
-    if not u or not p:
-        return "Missing username/password", 400
-    if u in _USERS:
-        return "User already exists", 400
+    if not username or not password:
+        return jsonify({"error": "Missing username or password"}), 400
 
-    _USERS[u] = generate_password_hash(p)
-    return jsonify({"message": "registered"}), 201
+    if not create_user(username, password):
+        return jsonify({"error": "Username already exists"}), 400
+
+    return jsonify({"message": "User registered"}), 201
 
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.json or {}
-    u = data.get("username")
-    p = data.get("password")
+    username = data.get("username")
+    password = data.get("password")
 
-    if u not in _USERS:
-        return "User not found", 404
-    if not check_password_hash(_USERS[u], p):
-        return "Invalid password", 401
+    if not verify_user(username, password):
+        return jsonify({"error": "Invalid credentials"}), 401
 
-    token = create_token(u)
-    return jsonify({"token": token, "username": u})
+    token = generate_token(username)
+    return jsonify({"token": token, "username": username})
 
 
-# ---------------- CONTAINER ROUTES ---------------- #
+# ----------------------------------------------------
+# FIX: Generate container names that DO NOT conflict
+# ----------------------------------------------------
+def generate_unique_name(base="env"):
+    number = 1
+    while True:
+        name = f"{base}-{number}"
 
+        # Check if name exists inside Docker
+        try:
+            docker_client.containers.get(name)
+            number += 1
+            continue
+        except docker.errors.NotFound:
+            pass
+
+        # Check if name exists in our in-memory list
+        if any(c["name"] == name for c in _CONTAINERS):
+            number += 1
+            continue
+
+        return name
+
+
+# ----------------------------------------------------
+# CREATE CONTAINER
+# ----------------------------------------------------
 @app.route("/api/container/create", methods=["POST"])
+@token_required
 def container_create():
-    user = require_auth(request)
-    if not user:
-        return "Unauthorized", 401
-
+    user = get_current_user()
     data = request.json or {}
 
-    name = data.get("name") or data.get("image") or f"env-{len(_CONTAINERS)+1}"
-    image = data.get("image") or "ubuntu:latest"
+    # Auto-unique SAFE name
+    name = generate_unique_name()
 
-    container = {
+    image = data.get("image") or "ubuntu:latest"
+    commands = data.get("commands")
+    cpu = data.get("cpu_limit")
+    ram = data.get("ram_limit")
+    port = data.get("port")
+
+    # Validate port
+    if not port or not str(port).isdigit() or not (1 <= int(port) <= 65535):
+        return jsonify({"error": "Invalid port"}), 400
+
+    # Build Docker image
+    folder, tag = generate_dockerfile(safe_tag(name), image, commands)
+
+    try:
+        build_image(folder, tag)
+    except Exception as e:
+        return jsonify({"error": f"Image build failed: {e}"}), 500
+
+    # Run the container
+    ports = {f"{port}/tcp": int(port)}
+
+    try:
+        container_obj = run_container(tag, name, ports, int(cpu), ram)
+    except Exception as e:
+        return jsonify({"error": f"Run failed: {e}"}), 500
+
+    # Save record
+    entry = {
         "name": name,
-        "ContainerID": (name + "000000000")[:12],
-        "Image": image,
+        "ContainerID": container_obj.id[:12],
+        "Image": tag,
         "Status": "running",
         "owner": user,
-        "created_at": datetime.datetime.utcnow().isoformat()
+        "Port": port,
     }
-    _CONTAINERS.append(container)
+    _CONTAINERS.append(entry)
 
-    return jsonify({"message": "created", "name": name}), 201
+    return jsonify({
+        "message": "created",
+        "name": name,
+        "port": port,
+        "id": container_obj.id
+    }), 201
 
 
+# ----------------------------------------------------
+# LIST CONTAINERS
+# ----------------------------------------------------
 @app.route("/api/container/list", methods=["GET"])
-def container_list():
-    user = require_auth(request)
-    if not user:
-        # For non-authenticated callers return empty list (frontend expects [])
-        return jsonify([])
-
-    # Return only containers owned by this user
-    return jsonify([c for c in _CONTAINERS if c.get("owner") == user])
+@token_required
+def list_containers():
+    user = get_current_user()
+    return jsonify([c for c in _CONTAINERS if c["owner"] == user])
 
 
-@app.route("/api/container/start/<name>", methods=["POST"])
-def container_start(name):
-    user = require_auth(request)
-    if not user:
-        return "Unauthorized", 401
-
+# ----------------------------------------------------
+# LOGS
+# ----------------------------------------------------
+@app.route("/api/container/logs/<name>", methods=["GET"])
+@token_required
+def logs(name):
+    user = get_current_user()
     for c in _CONTAINERS:
-        if c.get("name") == name and c.get("owner") == user:
-            c["Status"] = "running"
-            return jsonify({"message": "started"})
+        if c["name"] == name and c["owner"] == user:
+            return Response(get_logs(c["ContainerID"]), mimetype="text/plain")
     return "Not found", 404
 
 
+# ----------------------------------------------------
+# STOP CONTAINER
+# ----------------------------------------------------
 @app.route("/api/container/stop/<name>", methods=["POST"])
-def container_stop(name):
-    user = require_auth(request)
-    if not user:
-        return "Unauthorized", 401
-
+@token_required
+def stop(name):
+    user = get_current_user()
     for c in _CONTAINERS:
-        if c.get("name") == name and c.get("owner") == user:
+        if c["name"] == name and c["owner"] == user:
+            stop_container(c["ContainerID"])
             c["Status"] = "exited"
             return jsonify({"message": "stopped"})
     return "Not found", 404
 
 
-@app.route("/api/container/delete/<name>", methods=["DELETE"])
-def container_delete(name):
-    user = require_auth(request)
-    if not user:
-        return "Unauthorized", 401
+# ----------------------------------------------------
+# START CONTAINER
+# ----------------------------------------------------
+@app.route("/api/container/start/<name>", methods=["POST"])
+@token_required
+def start(name):
+    user = get_current_user()
+    for c in _CONTAINERS:
+        if c["name"] == name and c["owner"] == user:
 
-    global _CONTAINERS
-    before = len(_CONTAINERS)
-    _CONTAINERS = [
-        c for c in _CONTAINERS
-        if not (c.get("name") == name and c.get("owner") == user)
-    ]
-    if len(_CONTAINERS) < before:
-        return jsonify({"message": "deleted"})
+            port = c["Port"]
+            mapping = {f"{port}/tcp": int(port)}
+
+            try:
+                new_c = run_container(c["Image"], c["name"], mapping)
+                c["ContainerID"] = new_c.id[:12]
+                c["Status"] = "running"
+                return jsonify({"message": "started"})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
     return "Not found", 404
 
 
-@app.route("/api/container/logs/<name>", methods=["GET"])
-def container_logs(name):
-    user = require_auth(request)
-    if not user:
-        return "Unauthorized", 401
+# ----------------------------------------------------
+# DELETE CONTAINER
+# ----------------------------------------------------
+@app.route("/api/container/delete/<name>", methods=["DELETE"])
+@token_required
+def delete(name):
+    user = get_current_user()
+    for c in list(_CONTAINERS):
+        if c["name"] == name and c["owner"] == user:
+            remove_container(c["ContainerID"], force=True)
+            _CONTAINERS.remove(c)
+            return jsonify({"message": "deleted"})
+    return "Not found", 404
 
-    # Demo logs - replace with real docker logs later
-    logs = f"Demo logs for {name}\nCreated by: {user}\n---\nLine 1\nLine 2\n"
-    return Response(logs, mimetype="text/plain")
 
-
+# ----------------------------------------------------
+# RUN SERVER
+# ----------------------------------------------------
 if __name__ == "__main__":
-    # Helpful debug print on startup
-    print(">>> STARTING app.py (pid:", os.getpid(), ")")
     app.run(host="0.0.0.0", port=8000, debug=True)
