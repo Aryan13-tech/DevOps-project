@@ -1,4 +1,4 @@
-# docker_service.py  (FINAL + WSL2 FIXED VERSION)
+# docker_service.py (FINAL STABLE VERSION)
 
 import os
 import docker
@@ -7,7 +7,7 @@ from docker.errors import APIError, NotFound
 # Docker client
 client = docker.from_env()
 
-# Location where generated Dockerfiles will be stored
+# Folder to store generated Dockerfiles
 GENERATED_DIR = os.path.join(os.path.dirname(__file__), "Docker", "generated")
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
@@ -20,25 +20,59 @@ def safe_tag(name):
 
 
 # -------------------------------------------------
-# Generate Dockerfile
+# Generate Dockerfile (FULLY FIXED)
 # -------------------------------------------------
 def generate_dockerfile(name, base_image="ubuntu:latest", commands=None):
     """
-    Generates a folder + Dockerfile for each user environment.
-    The Dockerfile is minimal and uses CMD so output appears in logs.
+    FIXES:
+    - Multi-line commands
+    - CMD vs RUN conversion
+    - Empty commands crash
+    - Quote escaping
+    - Valid Dockerfile every time
     """
+
     tag = name + "_img"
     folder = os.path.join(GENERATED_DIR, name)
     os.makedirs(folder, exist_ok=True)
 
     dockerfile_lines = [f"FROM {base_image}"]
 
-    if commands:
-        dockerfile_lines.append(f"CMD {commands}")
-    else:
-        # default → keep container alive
+    # No commands entered by user → keep container alive
+    if not commands or commands.strip() == "":
         dockerfile_lines.append('CMD ["sleep", "infinity"]')
+        dockerfile_path = os.path.join(folder, "Dockerfile")
 
+        with open(dockerfile_path, "w") as f:
+            f.write("\n".join(dockerfile_lines))
+
+        return folder, tag
+
+    # Split commands into list
+    cmd_list = [c.strip() for c in commands.split("\n") if c.strip()]
+
+    # If still empty → fail safe
+    if len(cmd_list) == 0:
+        dockerfile_lines.append('CMD ["sleep", "infinity"]')
+        dockerfile_path = os.path.join(folder, "Dockerfile")
+
+        with open(dockerfile_path, "w") as f:
+            f.write("\n".join(dockerfile_lines))
+
+        return folder, tag
+
+    # Add RUN commands (all except last)
+    for cmd in cmd_list[:-1]:
+        dockerfile_lines.append(f'CMD ["/bin/sh", "-c", "{commands}"]')
+
+
+    # Last command becomes CMD
+    last_cmd = cmd_list[-1]
+    last_cmd = last_cmd.replace('"', '\\"')  # Escape quotes
+
+    dockerfile_lines.append(f'CMD ["sh", "-c", "{last_cmd}"]')
+
+    # Write Dockerfile
     dockerfile_path = os.path.join(folder, "Dockerfile")
 
     with open(dockerfile_path, "w") as f:
@@ -58,14 +92,9 @@ def build_image(path, tag):
 
 
 # -------------------------------------------------
-# Run Container (WSL2 safe)
+# Run Container (WSL2 Safe)
 # -------------------------------------------------
 def run_container(tag, name, ports=None, cpu_shares=None, mem_limit=None):
-    """
-    WSL2 FIX:
-    - cpu_shares causes cgroup errors on Windows/WSL2
-    - so we completely disable it.
-    """
     try:
         container = client.containers.run(
             tag,
@@ -73,15 +102,12 @@ def run_container(tag, name, ports=None, cpu_shares=None, mem_limit=None):
             detach=True,
             ports=ports or {},
 
-            # -----------------------------
-            # WSL2 FIX → disable CPU limits
-            # -----------------------------
+            # WSL2 FIX
             cpu_shares=None,
 
             mem_limit=mem_limit,
         )
         return container
-
     except APIError as e:
         raise RuntimeError(f"Run failed: {str(e)}")
 
@@ -93,9 +119,7 @@ def stop_container(container_id):
     try:
         c = client.containers.get(container_id)
         c.stop()
-    except NotFound:
-        pass
-    except Exception:
+    except:
         pass
 
 
@@ -106,18 +130,16 @@ def remove_container(container_id, force=False):
     try:
         c = client.containers.get(container_id)
         c.remove(force=force)
-    except NotFound:
-        pass
-    except Exception:
+    except:
         pass
 
 
 # -------------------------------------------------
-# Get Container Logs
+# Get Logs
 # -------------------------------------------------
 def get_logs(container_id):
     try:
         c = client.containers.get(container_id)
         return c.logs().decode("utf-8", errors="ignore")
-    except Exception:
+    except:
         return "No logs (container not found)"

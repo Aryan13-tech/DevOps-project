@@ -18,18 +18,15 @@ from docker_service import (
     safe_tag,
 )
 
-<<<<<<< HEAD
-# ---------------------------------------
-# Initialize Flask + Docker client
-# ---------------------------------------
+# ----------------------------------------------------
+# FLASK APP
+# ----------------------------------------------------
 app = Flask(__name__)
+
+# Docker client
 docker_client = docker.from_env()
-=======
 
-SECRET_KEY = "CLOUDLAB_SECRET_123"
->>>>>>> 91649705aeffa9e57749c0f1ed0a67f5f69e3120
-
-# Store container records in RAM
+# Memory storage
 _CONTAINERS = []
 
 
@@ -79,14 +76,13 @@ def login():
 
 
 # ----------------------------------------------------
-# FIX: Generate container names that DO NOT conflict
+# UNIQUE CONTAINER NAME GENERATOR
 # ----------------------------------------------------
 def generate_unique_name(base="env"):
     number = 1
     while True:
         name = f"{base}-{number}"
 
-        # Check if name exists inside Docker
         try:
             docker_client.containers.get(name)
             number += 1
@@ -94,7 +90,6 @@ def generate_unique_name(base="env"):
         except docker.errors.NotFound:
             pass
 
-        # Check if name exists in our in-memory list
         if any(c["name"] == name for c in _CONTAINERS):
             number += 1
             continue
@@ -111,7 +106,6 @@ def container_create():
     user = get_current_user()
     data = request.json or {}
 
-    # Auto-unique SAFE name
     name = generate_unique_name()
 
     image = data.get("image") or "ubuntu:latest"
@@ -120,11 +114,9 @@ def container_create():
     ram = data.get("ram_limit")
     port = data.get("port")
 
-    # Validate port
     if not port or not str(port).isdigit() or not (1 <= int(port) <= 65535):
         return jsonify({"error": "Invalid port"}), 400
 
-    # Build Docker image
     folder, tag = generate_dockerfile(safe_tag(name), image, commands)
 
     try:
@@ -132,7 +124,6 @@ def container_create():
     except Exception as e:
         return jsonify({"error": f"Image build failed: {e}"}), 500
 
-    # Run the container
     ports = {f"{port}/tcp": int(port)}
 
     try:
@@ -140,7 +131,6 @@ def container_create():
     except Exception as e:
         return jsonify({"error": f"Run failed: {e}"}), 500
 
-    # Save record
     entry = {
         "name": name,
         "ContainerID": container_obj.id[:12],

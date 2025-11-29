@@ -1,0 +1,2 @@
+FROM python:3.10-slim
+CMD ["sh", "-c", "/bin/sh -c \"pip install flask && printf 'from flask import Flask\napp = Flask(__name__)\n@app.route(\\"/\\")\ndef home(): return \\"Hello from Flask!\\"\napp.run(host=\\"0.0.0.0\\", port=8080)' > app.py && python app.py\""]
