@@ -1,12 +1,12 @@
 FROM nginx:latest
 
-# Remove default NGINX config
+# remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Add your custom NGINX config
+# copy your custom nginx reverse proxy config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy your frontend HTML file
-COPY index.html /usr/share/nginx/html/index.html
+# Copy ALL your frontend files (html + css + images)
+COPY . /usr/share/nginx/html/
 
 EXPOSE 80
