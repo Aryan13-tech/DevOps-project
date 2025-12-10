@@ -79,7 +79,7 @@ def login():
 # UNIQUE CONTAINER NAME GENERATOR
 # ----------------------------------------------------
 def generate_unique_name(base="env"):
-    number = 1
+    number = 1:
     while True:
         name = f"{base}-{number}"
 
@@ -107,7 +107,7 @@ def container_create():
     data = request.json or {}
 
     name = generate_unique_name()
-
+a
     image = data.get("image") or "ubuntu:latest"
     commands = data.get("commands")
     cpu = data.get("cpu_limit")
