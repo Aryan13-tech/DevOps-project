@@ -21,7 +21,7 @@ pipeline {
 
         stage('Cleanup Old Docker Containers') {
             steps {
-                sh """
+                sh '''
                 echo "Stopping old containers..."
                 docker stop cloudlab_backend || true
                 docker stop cloudlab_frontend || true
@@ -31,59 +31,56 @@ pipeline {
                 docker rm cloudlab_frontend || true
 
                 echo "Removing old images..."
-                docker rmi ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest || true
-                docker rmi ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest || true
-                """
+                docker rmi $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest || true
+                docker rmi $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest || true
+                '''
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                sh """
+                sh '''
                 echo "Building backend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest "${BACKEND_DIR}/Docker"
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
 
                 echo "Building frontend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest "${FRONTEND_DIR}/Docker"
-                """
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
+                '''
             }
         }
 
         stage('Login to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh """
-                    echo "${PASS}" | docker login -u "${USER}" --password-stdin
-                    """
+                    sh '''
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Push Images') {
+        stage('Push Images to DockerHub') {
             steps {
-                sh """
-                docker push ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
-                docker push ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
-                """
+                sh '''
+                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                '''
             }
         }
 
         stage('Deploy Containers') {
             steps {
-                sh """
-                echo "Starting backend container..."
-                docker run -d --name cloudlab_backend -p 8000:8000 ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
-
-                echo "Starting frontend container..."
-                docker run -d --name cloudlab_frontend -p 80:80 ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
-                """
+                sh '''
+                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "CloudLab Manager Deployment Successful!"
+            echo "Deployment Success!"
         }
         failure {
             echo "Deployment Failed — Check Jenkins logs."
