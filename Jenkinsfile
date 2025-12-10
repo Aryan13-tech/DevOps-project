@@ -2,88 +2,100 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "cloudlab-manager"
-        BACKEND_DIR = "CloudLab-Manager/backend"
-        FRONTEND_DIR = "CloudLab-Manager/frontend"
-        DOCKERHUB_USER = "aryansarvaiya13"
-        DOCKERHUB_BACKEND = "cloudlab-backend"
-        DOCKERHUB_FRONTEND = "cloudlab-frontend"
+        DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
+        SSH_CREDENTIALS = 'ec2-ssh'
+        DOCKERHUB_USER = 'aryansarvaiya13'
+
+        BACK_IMAGE = "cloudlab-backend"
+        FRONT_IMAGE = "cloudlab-frontend"
+
+        EC2_HOST = "18.232.35.230"
     }
 
     stages {
 
-        stage('Pull Code From GitHub') {
+        stage('Checkout Code') {
             steps {
-                echo "Pulling latest project code..."
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/Aryan13-tech/DevOps-project.git'
             }
         }
 
-        stage('Cleanup Old Docker Containers') {
+        stage('Build Backend Image') {
             steps {
-                sh '''
-                echo "Stopping old containers..."
-                docker stop cloudlab_backend || true
-                docker stop cloudlab_frontend || true
-
-                echo "Removing old containers..."
-                docker rm cloudlab_backend || true
-                docker rm cloudlab_frontend || true
-
-                echo "Removing old images..."
-                docker rmi $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest || true
-                docker rmi $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest || true
-                '''
+                script {
+                    sh """
+                    cd CloudLab-Manager/backend
+                    docker build -t ${DOCKERHUB_USER}/${BACK_IMAGE}:latest .
+                    """
+                }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Frontend Image') {
             steps {
-                sh '''
-                echo "Building backend image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
-
-                echo "Building frontend image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
-                '''
+                script {
+                    sh """
+                    cd CloudLab-Manager/frontend
+                    docker build -t ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest .
+                    """
+                }
             }
         }
 
         stage('Login to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh '''
-                    echo "$PASS" | docker login -u "$USER" --password-stdin
-                    '''
+                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS,
+                                                 usernameVariable: 'USER',
+                                                 passwordVariable: 'PASS')]) {
+                    sh 'echo $PASS | docker login -u $USER --password-stdin'
                 }
             }
         }
 
         stage('Push Images to DockerHub') {
             steps {
-                sh '''
-                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
-                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
-                '''
+                script {
+                    sh """
+                    docker push ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
+                    docker push ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
+                    """
+                }
             }
         }
 
-        stage('Deploy Containers') {
+        stage('Deploy to EC2') {
             steps {
-                sh '''
-                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
-                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
-                '''
+                sshagent([SSH_CREDENTIALS]) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} '
+                        docker rm -f cloudlab-backend || true
+                        docker rm -f cloudlab-frontend || true
+
+                        docker pull ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
+                        docker pull ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
+
+                        docker run -d --name cloudlab-backend \
+                            -p 8000:8000 \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
+
+                        docker run -d --name cloudlab-frontend \
+                            -p 80:80 \
+                            ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
+                    '
+                    """
+                }
             }
         }
     }
 
     post {
         success {
-            echo "Deployment Success!"
+            echo "🚀 Deployment Successful!"
         }
         failure {
-            echo "Deployment Failed — Check Jenkins logs."
+            echo "❌ Deployment Failed!"
         }
     }
 }
