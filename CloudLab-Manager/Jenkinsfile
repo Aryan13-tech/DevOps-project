@@ -19,32 +19,28 @@ pipeline {
             }
         }
 
-        stage('Cleanup Old Docker Containers') {
+        stage('Cleanup Old Containers') {
             steps {
-                sh """
-                echo "Stopping old containers..."
+                sh '''
+                echo "Stopping old Docker containers..."
                 docker stop cloudlab_backend || true
                 docker stop cloudlab_frontend || true
 
-                echo "Removing old containers..."
+                echo "Removing old Docker containers..."
                 docker rm cloudlab_backend || true
                 docker rm cloudlab_frontend || true
-
-                echo "Removing old images..."
-                docker rmi ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest || true
-                docker rmi ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest || true
-                """
+                '''
             }
         }
 
         stage('Build Docker Images') {
             steps {
                 sh """
-                echo "Building backend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest "${BACKEND_DIR}"
+                echo "Building backend Docker image..."
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
 
-                echo "Building frontend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest "${FRONTEND_DIR}"
+                echo "Building frontend Docker image..."
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
                 """
             }
         }
@@ -52,31 +48,35 @@ pipeline {
         stage('Login to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh """
-                    echo "${PASS}" | docker login -u "${USER}" --password-stdin
-                    """
+                    sh '''
+                    echo "Logging into DockerHub..."
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Push Images') {
+        stage('Push Images to DockerHub') {
             steps {
-                sh """
-                docker push ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
-                docker push ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
-                """
+                sh '''
+                echo "Pushing backend image..."
+                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+
+                echo "Pushing frontend image..."
+                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                '''
             }
         }
 
         stage('Deploy Containers') {
             steps {
-                sh """
+                sh '''
                 echo "Starting backend container..."
-                docker run -d --name cloudlab_backend -p 8000:8000 ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
+                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
 
                 echo "Starting frontend container..."
-                docker run -d --name cloudlab_frontend -p 80:80 ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
-                """
+                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                '''
             }
         }
     }
