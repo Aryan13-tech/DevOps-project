@@ -34,16 +34,17 @@ pipeline {
         }
 
         stage('Build Docker Images') {
-            steps {
-                sh """
-                echo "Building backend Docker image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
+    steps {
+        sh '''
+        echo "Building backend image..."
+        docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR/Docker"
 
-                echo "Building frontend Docker image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
-                """
-            }
-        }
+        echo "Building frontend image..."
+        docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR/Docker"
+        '''
+    }
+}
+
 
         stage('Login to DockerHub') {
             steps {
