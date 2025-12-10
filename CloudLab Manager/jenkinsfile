@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         APP_NAME = "cloudlab-manager"
-        BACKEND_DIR = "CloudLab Manager/backend"
-        FRONTEND_DIR = "CloudLab Manager/frontend"
+        BACKEND_DIR = "CloudLab-Manager/backend"
+        FRONTEND_DIR = "CloudLab-Manager/frontend"
         DOCKERHUB_USER = "aryan13tech"
         DOCKERHUB_BACKEND = "cloudlab-backend"
         DOCKERHUB_FRONTEND = "cloudlab-frontend"
@@ -23,12 +23,12 @@ pipeline {
             steps {
                 sh '''
                 echo "Stopping old Docker containers..."
-                sudo docker stop cloudlab_backend || true
-                sudo docker stop cloudlab_frontend || true
+                docker stop cloudlab_backend || true
+                docker stop cloudlab_frontend || true
 
                 echo "Removing old Docker containers..."
-                sudo docker rm cloudlab_backend || true
-                sudo docker rm cloudlab_frontend || true
+                docker rm cloudlab_backend || true
+                docker rm cloudlab_frontend || true
                 '''
             }
         }
@@ -37,10 +37,10 @@ pipeline {
             steps {
                 sh """
                 echo "Building backend Docker image..."
-                sudo docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
 
                 echo "Building frontend Docker image..."
-                sudo docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
+                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
                 """
             }
         }
@@ -50,7 +50,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
                     echo "Logging into DockerHub..."
-                    echo "$PASS" | sudo docker login -u "$USER" --password-stdin
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
                     '''
                 }
             }
@@ -60,10 +60,10 @@ pipeline {
             steps {
                 sh '''
                 echo "Pushing backend image..."
-                sudo docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
 
                 echo "Pushing frontend image..."
-                sudo docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
                 '''
             }
         }
@@ -72,10 +72,10 @@ pipeline {
             steps {
                 sh '''
                 echo "Starting backend container..."
-                sudo docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
 
                 echo "Starting frontend container..."
-                sudo docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
                 '''
             }
         }
