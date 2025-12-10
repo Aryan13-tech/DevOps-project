@@ -5,43 +5,43 @@ pipeline {
         APP_NAME = "cloudlab-manager"
         BACKEND_DIR = "CloudLab Manager/backend"
         FRONTEND_DIR = "CloudLab Manager/frontend"
-        DOCKERHUB_USER = "aryan13tech"         
+        DOCKERHUB_USER = "aryan13tech"
         DOCKERHUB_BACKEND = "cloudlab-backend"
         DOCKERHUB_FRONTEND = "cloudlab-frontend"
     }
 
     stages {
 
-        stage(' Pull Code From GitHub') {
+        stage('Pull Code From GitHub') {
             steps {
                 echo "Pulling latest project code..."
                 checkout scm
             }
         }
 
-        stage(' Cleanup Old Docker Containers') {
+        stage('Cleanup Old Containers') {
             steps {
                 sh '''
                 echo "Stopping old Docker containers..."
-                docker container stop cloudlab_backend || true
-                docker container stop cloudlab_frontend || true
+                sudo docker stop cloudlab_backend || true
+                sudo docker stop cloudlab_frontend || true
 
                 echo "Removing old Docker containers..."
-                docker container rm cloudlab_backend || true
-                docker container rm cloudlab_frontend || true
+                sudo docker rm cloudlab_backend || true
+                sudo docker rm cloudlab_frontend || true
                 '''
             }
         }
 
-        stage(' Build Docker Images') {
+        stage('Build Docker Images') {
             steps {
-                sh '''
+                sh """
                 echo "Building backend Docker image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
+                sudo docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR"
 
                 echo "Building frontend Docker image..."
-                docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
-                '''
+                sudo docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR"
+                """
             }
         }
 
@@ -50,32 +50,32 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
                     echo "Logging into DockerHub..."
-                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    echo "$PASS" | sudo docker login -u "$USER" --password-stdin
                     '''
                 }
             }
         }
 
-        stage(' Push Images to DockerHub') {
+        stage('Push Images to DockerHub') {
             steps {
                 sh '''
                 echo "Pushing backend image..."
-                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                sudo docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
 
                 echo "Pushing frontend image..."
-                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                sudo docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
                 '''
             }
         }
 
-        stage('Deploy Backend & Frontend') {
+        stage('Deploy Containers') {
             steps {
                 sh '''
                 echo "Starting backend container..."
-                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                sudo docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
 
                 echo "Starting frontend container..."
-                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
+                sudo docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
                 '''
             }
         }
@@ -83,10 +83,10 @@ pipeline {
 
     post {
         success {
-            echo " CloudLab Manager Deployment Successful!"
+            echo "CloudLab Manager Deployment Successful!"
         }
         failure {
-            echo " Deployment Failed — Check Jenkins logs."
+            echo "Deployment Failed — Check Jenkins logs."
         }
     }
 }
