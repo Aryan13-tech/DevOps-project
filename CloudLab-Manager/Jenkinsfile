@@ -21,7 +21,7 @@ pipeline {
 
         stage('Cleanup Old Containers') {
             steps {
-                sh '''
+                sh """
                 echo "Stopping old Docker containers..."
                 docker stop cloudlab_backend || true
                 docker stop cloudlab_frontend || true
@@ -29,7 +29,7 @@ pipeline {
                 echo "Removing old Docker containers..."
                 docker rm cloudlab_backend || true
                 docker rm cloudlab_frontend || true
-                '''
+                """
             }
         }
 
@@ -37,10 +37,10 @@ pipeline {
     steps {
         sh '''
         echo "Building backend image..."
-        docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest "$BACKEND_DIR/Docker"
+        docker build -t $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest CloudLab-Manager/backend
 
         echo "Building frontend image..."
-        docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest "$FRONTEND_DIR/Docker"
+        docker build -t $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest CloudLab-Manager/frontend
         '''
     }
 }
@@ -49,35 +49,35 @@ pipeline {
         stage('Login to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh '''
+                    sh """
                     echo "Logging into DockerHub..."
-                    echo "$PASS" | docker login -u "$USER" --password-stdin
-                    '''
+                    echo "${PASS}" | docker login -u "${USER}" --password-stdin
+                    """
                 }
             }
         }
 
         stage('Push Images to DockerHub') {
             steps {
-                sh '''
+                sh """
                 echo "Pushing backend image..."
-                docker push $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker push ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
 
                 echo "Pushing frontend image..."
-                docker push $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
-                '''
+                docker push ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
+                """
             }
         }
 
         stage('Deploy Containers') {
             steps {
-                sh '''
+                sh """
                 echo "Starting backend container..."
-                docker run -d --name cloudlab_backend -p 8000:8000 $DOCKERHUB_USER/$DOCKERHUB_BACKEND:latest
+                docker run -d --name cloudlab_backend -p 8000:8000 ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest
 
                 echo "Starting frontend container..."
-                docker run -d --name cloudlab_frontend -p 80:80 $DOCKERHUB_USER/$DOCKERHUB_FRONTEND:latest
-                '''
+                docker run -d --name cloudlab_frontend -p 80:80 ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest
+                """
             }
         }
     }
