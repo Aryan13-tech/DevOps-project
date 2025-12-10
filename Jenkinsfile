@@ -41,10 +41,10 @@ pipeline {
             steps {
                 sh """
                 echo "Building backend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest "${BACKEND_DIR}"
+                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_BACKEND}:latest "${BACKEND_DIR}/Docker"
 
                 echo "Building frontend image..."
-                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest "${FRONTEND_DIR}"
+                docker build -t ${DOCKERHUB_USER}/${DOCKERHUB_FRONTEND}:latest "${FRONTEND_DIR}/Docker"
                 """
             }
         }
