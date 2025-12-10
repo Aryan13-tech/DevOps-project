@@ -153,7 +153,7 @@
 
 <script>
 /* ---------------- Settings ---------------- */
-const API_BASE_URL = "";
+const API_BASE_URL = "http://18.232.35.230:8000";   // Backend Public IP
 const REFRESH_INTERVAL = 3000;
 
 /* ---------------- DOM ---------------- */
@@ -192,7 +192,6 @@ function setAuthToken(token, username = null) {
     localStorage.removeItem("CLOUDLAB_USERNAME");
 
     userDisplay.classList.add("hidden");
-
     openLogin.classList.remove("hidden");
     logoutButton.classList.add("hidden");
   }
@@ -268,7 +267,7 @@ authSubmit.addEventListener("click", async () => {
 
   try {
     if (authMode === "login") {
-      const resp = await fetch("/api/auth/login", {
+      const resp = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({username, password})
@@ -276,7 +275,7 @@ authSubmit.addEventListener("click", async () => {
 
       const data = await resp.json();
       if (!resp.ok) {
-        authMsg.textContent = data.error;
+        authMsg.textContent = data.error || "Login failed";
         authMsg.classList.remove("hidden");
         return;
       }
@@ -287,14 +286,15 @@ authSubmit.addEventListener("click", async () => {
       fetchContainers();
 
     } else {
-      const resp = await fetch("/api/auth/register", {
+      const resp = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({username, password})
       });
 
+      const data = await resp.json();
       if (!resp.ok) {
-        authMsg.textContent = "Registration failed";
+        authMsg.textContent = data.error || "Registration failed";
         authMsg.classList.remove("hidden");
         return;
       }
@@ -341,7 +341,7 @@ form.addEventListener("submit", async (e) => {
   };
 
   try {
-    const resp = await fetchWithAuth("/api/container/create", {
+    const resp = await fetchWithAuth(`${API_BASE_URL}/api/container/create`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload)
@@ -353,7 +353,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    showMessage("Container created on port " + data.Port);
+    showMessage("Container created on port " + data.port);
     fetchContainers();
 
   } catch (err) {
@@ -369,7 +369,7 @@ async function fetchContainers() {
   loadingIndicator.classList.remove("hidden");
 
   try {
-    const resp = await fetchWithAuth("/api/container/list");
+    const resp = await fetchWithAuth(`${API_BASE_URL}/api/container/list`);
     const data = await resp.json();
 
     if (!data.length) {
@@ -380,7 +380,7 @@ async function fetchContainers() {
 
     data.forEach(c => {
       const url = c.Port
-        ? `<a target="_blank" class="btn-link" href="http://localhost:${c.Port}">Open</a>`
+        ? `<a target="_blank" class="btn-link" href="http://18.232.35.230:${c.Port}">Open</a>`
         : `<span class="text-gray-400 text-xs">None</span>`;
 
       const row = document.createElement("tr");
@@ -404,19 +404,22 @@ async function fetchContainers() {
 
 /* ---------------- ACTIONS ---------------- */
 window.stopContainer = async (name) => {
-  await fetchWithAuth(`/api/container/stop/${name}`, {method: "POST"});
+  await fetchWithAuth(`${API_BASE_URL}/api/container/stop/${name}`, {method: "POST"});
   fetchContainers();
 };
+
 window.deleteContainer = async (name) => {
   if (!confirm("Delete?")) return;
-  await fetchWithAuth(`/api/container/delete/${name}`, {method: "DELETE"});
+  await fetchWithAuth(`${API_BASE_URL}/api/container/delete/${name}`, {method: "DELETE"});
   fetchContainers();
 };
+
 window.viewLogs = async (name) => {
   document.getElementById("logs-modal").classList.remove("hidden");
-  const resp = await fetchWithAuth(`/api/container/logs/${name}`);
+  const resp = await fetchWithAuth(`${API_BASE_URL}/api/container/logs/${name}`);
   document.getElementById("log-content").textContent = await resp.text();
 };
+
 document.getElementById("close-modal").onclick =
   () => document.getElementById("logs-modal").classList.add("hidden");
 
@@ -433,6 +436,7 @@ document.getElementById("close-modal").onclick =
   setInterval(fetchContainers, REFRESH_INTERVAL);
 })();
 </script>
+
 
 </body>
 </html>
