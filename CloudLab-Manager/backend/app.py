@@ -79,7 +79,7 @@ def login():
 # UNIQUE CONTAINER NAME GENERATOR
 # ----------------------------------------------------
 def generate_unique_name(base="env"):
-    number = 1:
+    number = 1
     while True:
         name = f"{base}-{number}"
 
