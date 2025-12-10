@@ -5,7 +5,7 @@ pipeline {
         APP_NAME = "cloudlab-manager"
         BACKEND_DIR = "CloudLab-Manager/backend"
         FRONTEND_DIR = "CloudLab-Manager/frontend"
-        DOCKERHUB_USER = "aryan13tech"
+        DOCKERHUB_USER = "aryansarvaiya13"
         DOCKERHUB_BACKEND = "cloudlab-backend"
         DOCKERHUB_FRONTEND = "cloudlab-frontend"
     }
