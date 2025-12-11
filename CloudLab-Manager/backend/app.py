@@ -18,9 +18,6 @@ from docker_service import (
     safe_tag,
 )
 
-# ----------------------------------------------------
-# FLASK APP
-# ----------------------------------------------------
 app = Flask(__name__)
 
 # Docker client
@@ -28,21 +25,6 @@ docker_client = docker.from_env()
 
 # Memory storage
 _CONTAINERS = []
-
-
-# ----------------------------------------------------
-# Serve Frontend (STATIC FILES)
-# ----------------------------------------------------
-FRONTEND_FOLDER = os.path.join(os.path.dirname(__file__), "..", "Frontend")
-
-@app.route("/")
-def home():
-    return send_from_directory(FRONTEND_FOLDER, "index.html")
-
-@app.route("/<path:path>")
-def serve_static(path):
-    return send_from_directory(FRONTEND_FOLDER, path)
-
 
 # ----------------------------------------------------
 # AUTH APIs
@@ -127,7 +109,7 @@ def container_create():
     ports = {f"{port}/tcp": int(port)}
 
     try:
-        container_obj = run_container(tag, name, ports, int(cpu), ram)
+        container_obj = run_container(tag, name, ports, int(cpu) if cpu else None, ram)
     except Exception as e:
         return jsonify({"error": f"Run failed: {e}"}), 500
 
@@ -147,7 +129,6 @@ def container_create():
         "port": port,
         "id": container_obj.id
     }), 201
-
 
 
 # ----------------------------------------------------
@@ -225,6 +206,29 @@ def delete(name):
             _CONTAINERS.remove(c)
             return jsonify({"message": "deleted"})
     return "Not found", 404
+
+
+# ----------------------------------------------------
+# Serve Frontend (STATIC FILES)  <-- PUT THIS LAST
+# ----------------------------------------------------
+FRONTEND_FOLDER = os.path.join(os.path.dirname(__file__), "..", "frontend")  # verify this name/case
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_static(path):
+    # Protect API namespace from being served as static files
+    if path.startswith("api"):
+        return jsonify({"error": "API endpoint not found"}), 404
+
+    # Serve index on root or fallback for SPA routes
+    if path == "":
+        return send_from_directory(FRONTEND_FOLDER, "index.html")
+
+    # Try static file, fallback to index.html (for client routing)
+    try:
+        return send_from_directory(FRONTEND_FOLDER, path)
+    except Exception:
+        return send_from_directory(FRONTEND_FOLDER, "index.html")
 
 
 # ----------------------------------------------------
