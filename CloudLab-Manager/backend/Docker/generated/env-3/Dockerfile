@@ -1,2 +1,0 @@
-FROM ubuntu:latest
-CMD /bin/bash -c "apt update && apt install -y python3 python3-pip && echo \"from flask import Flask\napp = Flask(__name__)\n@app.route('/')\ndef home(): return 'Hello World!'\napp.run(host='0.0.0.0', port=2121)\" > app.py && python3 app.py"

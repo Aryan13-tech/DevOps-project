@@ -1,2 +1,0 @@
-FROM node:18-alpine
-CMD ["sh", "-c", "apk add --no-cache nodejs npm && printf \"const http=require('http');http.createServer((req,res)=>{res.end('Hello from Node.js Web Server!');}).listen(8080,'0.0.0.0');\" > server.js && node server.js"]
