@@ -36,7 +36,7 @@ apk add --no-cache nodejs npm && printf "const http=require('http');http.createS
 
 copy and pest this command in to initial commands.
 ```sh
-pip install flask && printf "from flask import Flask\napp=Flask(__name__)\n@app.route('/')\ndef home(): return 'Hello from Flask Container!'\napp.run(host='0.0.0.0', port=3030)" > app.py && python3 app.py
+    pip install flask && printf "from flask import Flask\napp=Flask(__name__)\n@app.route('/')\ndef home(): return 'Hello from Flask Container!'\napp.run(host='0.0.0.0', port=3030)" > app.py && python3 app.py
 
 ```
 

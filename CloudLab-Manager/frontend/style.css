@@ -87,6 +87,76 @@ button {
   background: linear-gradient(90deg, #6366f1, #818cf8);
   color: white;
   cursor: pointer;
+}/* =========================
+   ACTION BUTTONS - ONE LINE
+========================= */
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* BASE BUTTON */
+.actions .btn {
+  padding: 8px 18px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+/* HOVER EFFECT */
+.actions .btn:hover {
+  transform: translateY(-1px);
+}
+
+/* START - GREEN */
+.actions .btn.start {
+  background: #22c55e;
+}
+
+.actions .btn.start:hover {
+  background: #16a34a;
+}
+
+/* STOP - ORANGE */
+.actions .btn.stop {
+  background: #f97316;
+}
+
+.actions .btn.stop:hover {
+  background: #ea580c;
+}
+
+/* DELETE - RED */
+.actions .btn.delete {
+  background: #ef4444;
+}
+
+.actions .btn.delete:hover {
+  background: #dc2626;
+}
+
+/* PORT - BLUE */
+.actions .btn.port {
+  background: #3b82f6;
+}
+
+.actions .btn.port:hover {
+  background: #2563eb;
+}
+
+/* DISABLED */
+.actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* ENV CARD */
