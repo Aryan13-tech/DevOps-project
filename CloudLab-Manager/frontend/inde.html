@@ -10,17 +10,15 @@
 <!-- TOP BAR -->
 <header class="topbar">
   <h2>☁ CloudLab Manager</h2>
-
   <div class="auth-buttons">
     <button class="auth-btn" onclick="openModal('login')">Login</button>
     <button class="auth-btn primary" onclick="openModal('register')">Register</button>
   </div>
 </header>
 
-<!-- MAIN -->
 <div class="container">
 
-  <!-- LEFT CARD -->
+  <!-- CREATE ENV -->
   <div class="card left">
     <h3>Create Environment</h3>
 
@@ -37,17 +35,16 @@
     <label>RAM (MB)</label>
     <input type="number" id="ram" placeholder="e.g. 512">
 
-    <label>Port (1001–9999)</label>
+    <label>Port</label>
     <input type="number" id="port" placeholder="e.g. 2020">
 
     <label>Initial Commands</label>
-    <textarea id="command" rows="4"
-      placeholder="Paste startup command here..."></textarea>
+    <textarea id="command" rows="4"></textarea>
 
-    <button onclick="createEnv()">Create Environment</button>
+    <button id="createBtn" onclick="createEnv()">Create Environment</button>
   </div>
 
-  <!-- RIGHT CARD -->
+  <!-- ENV LIST -->
   <div class="card right">
     <h3>My Docker Environments</h3>
     <div id="envList">
@@ -56,15 +53,13 @@
   </div>
 </div>
 
-<!-- LOGIN / REGISTER MODAL -->
+<!-- MODAL -->
 <div id="authModal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeModal()">×</span>
     <h3 id="modalTitle">Login</h3>
-
-    <input type="text" placeholder="Username">
-    <input type="password" placeholder="Password">
-
+    <input placeholder="Username">
+    <input placeholder="Password" type="password">
     <button class="primary" onclick="closeModal()">Submit</button>
   </div>
 </div>

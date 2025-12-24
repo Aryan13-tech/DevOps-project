@@ -1,55 +1,89 @@
+/***********************
+ * DOM ELEMENTS
+ ***********************/
+const authModal = document.getElementById("authModal");
+const modalTitle = document.getElementById("modalTitle");
+
+const imageEl = document.getElementById("image");
+const cpuEl = document.getElementById("cpu");
+const ramEl = document.getElementById("ram");
+const portEl = document.getElementById("port");
+const commandEl = document.getElementById("command");
+
+const createBtn = document.querySelector(".left button");
+const envList = document.getElementById("envList");
+
+/***********************
+ * STATE
+ ***********************/
 let environments = [];
 
-/* ========= LOGIN / REGISTER ========= */
+/***********************
+ * LOGIN / REGISTER
+ ***********************/
 function openModal(type) {
-  document.getElementById("authModal").style.display = "flex";
-  document.getElementById("modalTitle").innerText =
-    type === "login" ? "Login" : "Register";
+  authModal.style.display = "flex";
+  modalTitle.innerText = type === "login" ? "Login" : "Register";
 }
 
 function closeModal() {
-  document.getElementById("authModal").style.display = "none";
+  authModal.style.display = "none";
 }
 
-/* ========= CREATE ENV ========= */
-function createEnv() {
-  const image = document.getElementById("image").value;
-  const cpu = document.getElementById("cpu").value.trim();
-  const ram = document.getElementById("ram").value.trim();
-  const port = document.getElementById("port").value.trim();
-  const command = document.getElementById("command").value.trim();
+/***********************
+ * CREATE ENV
+ ***********************/
+async function createEnv() {
+  const image = imageEl.value;
+  const cpu = cpuEl.value.trim();
+  const ram = ramEl.value.trim();
+  const port = portEl.value.trim();
+  const command = commandEl.value.trim();
 
   if (!cpu || !ram || !port || !command) {
     alert("Please fill all fields");
     return;
   }
 
-  if (port < 1001 || port > 9999) {
-    alert("Port must be between 1001 and 9999");
-    return;
+  createBtn.disabled = true;
+  createBtn.innerText = "Creating...";
+
+  try {
+    const res = await fetch("http://localhost:5000/create-env", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image, port, command })
+    });
+
+    const data = await res.json();
+
+    environments.push({
+      id: data.containerName,
+      image,
+      cpu,
+      ram,
+      port,
+      status: "Starting"
+    });
+
+    renderEnvs();
+  } catch (err) {
+    alert("Failed to create environment");
+    console.error(err);
   }
 
-  const env = {
-    id: Date.now(),
-    image,
-    cpu,
-    ram,
-    port,
-    status: "Running"
-  };
-
-  environments.push(env);
-  renderEnvs();
-  clearForm();
+  createBtn.disabled = false;
+  createBtn.innerText = "Create Environment";
 }
 
-/* ========= RENDER ========= */
+/***********************
+ * RENDER
+ ***********************/
 function renderEnvs() {
-  const list = document.getElementById("envList");
-  list.innerHTML = "";
+  envList.innerHTML = "";
 
   if (environments.length === 0) {
-    list.innerHTML = `<p class="empty">No environment created yet.</p>`;
+    envList.innerHTML = `<p class="empty">No environment created yet.</p>`;
     return;
   }
 
@@ -61,52 +95,98 @@ function renderEnvs() {
       <p><b>Image:</b> ${env.image}</p>
       <p><b>CPU:</b> ${env.cpu}</p>
       <p><b>RAM:</b> ${env.ram} MB</p>
-      <p><b>Port:</b> ${env.port}</p>
-      <p><b>Status:</b>
-        <span class="status ${env.status.toLowerCase()}">${env.status}</span>
-      </p>
+      <p><b>Status:</b> <span class="status">${env.status}</span></p>
 
       <div class="actions">
-        <button class="btn start"
-          onclick="updateStatus(${env.id}, 'Running')"
-          ${env.status === "Running" ? "disabled" : ""}>Start</button>
+        <button class="btn start" onclick="startEnv('${env.id}')">Start</button>
+        <button class="btn stop" onclick="stopEnv('${env.id}')">Stop</button>
+        <button class="btn delete" onclick="deleteEnv('${env.id}')">Delete</button>
 
-        <button class="btn stop"
-          onclick="updateStatus(${env.id}, 'Stopped')"
-          ${env.status === "Stopped" ? "disabled" : ""}>Stop</button>
+        <button class="btn port" id="port-${env.id}" disabled>
+          Port ${env.port} (Starting…)
+        </button>
+      </div>
 
-        <button class="btn delete"
-          onclick="deleteEnv(${env.id})">Delete</button>
-
-        <button class="btn port"
-          onclick="openPort(${env.port})">Port ${env.port}</button>
+      <div class="logs-box">
+        <pre id="logs-${env.id}">Waiting for logs...</pre>
       </div>
     `;
 
-    list.appendChild(div);
+    envList.appendChild(div);
+
+    startLogPolling(env.id);
+    checkPortReady(env.id, env.port);
   });
 }
 
-/* ========= ACTIONS ========= */
-function updateStatus(id, status) {
-  environments.forEach(env => {
-    if (env.id === id) env.status = status;
+/***********************
+ * LOGS
+ ***********************/
+function startLogPolling(name) {
+  setInterval(async () => {
+    try {
+      const res = await fetch(`http://localhost:5000/docker-logs/${name}`);
+      const data = await res.json();
+      document.getElementById(`logs-${name}`).innerText =
+        data.logs || "No logs yet";
+    } catch {}
+  }, 3000);
+}
+
+/***********************
+ * PORT READY CHECK
+ ***********************/
+function checkPortReady(name, port) {
+  const btn = document.getElementById(`port-${name}`);
+
+  const timer = setInterval(async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/port-status/${name}/${port}`
+      );
+      const data = await res.json();
+
+      if (data.ready) {
+        btn.disabled = false;
+        btn.innerText = `Open Port ${port}`;
+        btn.onclick = () =>
+          window.open(`http://localhost:${port}`, "_blank");
+        clearInterval(timer);
+
+        environments.forEach(e => {
+          if (e.id === name) e.status = "Running";
+        });
+      }
+    } catch {}
+  }, 3000);
+}
+
+/***********************
+ * ACTIONS
+ ***********************/
+function stopEnv(id) {
+  fetch("http://localhost:5000/stop-env", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
   });
-  renderEnvs();
+}
+
+function startEnv(id) {
+  fetch("http://localhost:5000/start-env", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
 }
 
 function deleteEnv(id) {
-  environments = environments.filter(env => env.id !== id);
+  fetch("http://localhost:5000/delete-env", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
+
+  environments = environments.filter(e => e.id !== id);
   renderEnvs();
-}
-
-function openPort(port) {
-  window.open(`http://localhost:${port}`, "_blank");
-}
-
-function clearForm() {
-  document.getElementById("cpu").value = "";
-  document.getElementById("ram").value = "";
-  document.getElementById("port").value = "";
-  document.getElementById("command").value = "";
 }

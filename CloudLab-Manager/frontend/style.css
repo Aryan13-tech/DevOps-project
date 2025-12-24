@@ -159,6 +159,25 @@ button {
   transform: none;
 }
 
+.logs-box {
+  background: rgba(0,0,0,0.75);
+  color: #00ff88;
+  padding: 10px;
+  margin-top: 10px;
+  height: 120px;
+  overflow-y: auto;
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.btn.port.disabled {
+  background: #64748b;
+  color: #e5e7eb;
+  cursor: not-allowed;
+}
+
+
 /* ENV CARD */
 .env-card {
   background: linear-gradient(
