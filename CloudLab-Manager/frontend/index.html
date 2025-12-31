@@ -2,287 +2,293 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CloudLab Manager</title>
+  <title>CloudLab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #e0f2fe, #ede9fe);
+    min-height: 100vh;
+  }
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: linear-gradient(135deg, #dbeafe, #ede9fe);
-      min-height: 100vh;
-    }
+  .container {
+    max-width: 1000px;
+    margin: auto;
+    padding: 30px;
+  }
 
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      padding: 30px;
-    }
+  header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
 
-    header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
+  header h1 {
+    margin: 0;
+    color: #4f46e5;
+  }
 
-    header h1 {
-      margin: 0;
-      color: #4f46e5;
-    }
+  header p {
+    color: #475569;
+    margin-top: 8px;
+  }
 
-    header p {
-      color: #475569;
-      margin-top: 8px;
-    }
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px; /* slightly increased for breathing space */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  }
 
-    .card {
-      background: #ffffff;
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      margin-bottom: 25px;
-    }
+  /* ✅ PROPER FORM SPACING (REAL FIX) */
+  .field {
+    margin-top: 12px;
+  }
 
-    textarea {
-      width: 100%;
-      height: 120px;
-      padding: 12px;
-      font-size: 14px;
-      border-radius: 10px;
-      border: 1px solid #cbd5f5;
-      resize: none;
-    }
+  .field label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
 
-    button {
-      margin-top: 15px;
-      width: 100%;
-      padding: 12px;
-      background: #6366f1;
-      color: #fff;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
+  textarea {
+    width: 100%;
+    height: 120px;
+    padding: 14px;
+    font-size: 14px;
+    border-radius: 10px;
+    border: 1px solid #cbd5f5;
+    resize: none;
+    box-sizing: border-box;
+  }
 
-    button:hover {
-      background: #4f46e5;
-    }
+  textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  }
 
-    .results {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
-    }
+  button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 14px;
+    background: #6366f1;
+    color: #fff;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
 
-    .result-box h3 {
-      margin-top: 0;
-      color: #4338ca;
-    }
+  button:hover {
+    background: #4f46e5;
+  }
 
-    .result-box p, .result-box ul {
-      color: #334155;
-      font-size: 14px;
-    }
+  button.loading {
+    pointer-events: none;
+    opacity: 0.85;
+  }
 
-    /* ===== POPUP STYLES ===== */
-    #offlinePopup {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-    }
+  /* Spinner */
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255,255,255,0.4);
+    border-top: 3px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
 
-    .popup-box {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 400px;
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
 
-    .popup-box h3 {
-      margin-top: 0;
-      color: #4338ca;
-    }
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+    align-items: stretch;
+  }
 
-    .popup-box p {
-      color: #334155;
-      font-size: 14px;
-    }
+  .results .card {
+    display: flex;
+    flex-direction: column;
+  }
 
-    .popup-box button {
-      width: auto;
-      margin-top: 15px;
-      padding: 10px 20px;
-    }
-  </style>
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0;
+    color: #4338ca;
+  }
+
+  p, ul {
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  ul {
+    padding-left: 18px;
+  }
+
+  /* Category Badge */
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    align-self: flex-start;
+  }
+
+  .Programming { background: #e0e7ff; color: #3730a3; }
+  .System { background: #dcfce7; color: #166534; }
+  .Network { background: #fef3c7; color: #92400e; }
+
+  /* Popup */
+  #offlinePopup {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+
+  .popup-box {
+    background: #ffffff;
+    padding: 28px;
+    border-radius: 14px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+
+  .popup-box button {
+    margin-top: 18px;
+    width: 140px;
+  }
+</style>
+
 </head>
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <header>
-      <h1>CloudLab Manager</h1>
-      <p>Intelligent Error Explanation Tool</p>
-    </header>
+  <header>
+    <h1>CloudLab</h1>
+    <p>Intelligent Error Explanation Tool</p>
+  </header>
 
-    <!-- Input Section -->
+  <!-- Input -->
+  <div class="card">
+    <label><strong>Paste Your Error Message Below</strong></label>
+    <textarea id="errorInput" placeholder="Example: ModuleNotFoundError: No module named 'numpy'"></textarea>
+    <button id="analyzeBtn" onclick="analyzeError()">Analyze Error</button>
+  </div>
+
+  <!-- Results -->
+  <div class="results">
+
     <div class="card">
-      <label><strong>Paste Your Error Message Below</strong></label>
-      <textarea id="errorInput" placeholder="Example: ModuleNotFoundError: No module named 'numpy'"></textarea>
-      <button onclick="analyzeError()">Analyze Error</button>
+      <span id="categoryBadge" class="badge Programming">Programming</span>
+      <h3>📘 Error Explanation</h3>
+      <p id="explanation">No error analyzed yet.</p>
     </div>
 
-    <!-- Results Section -->
-    <div class="results">
+    <div class="card">
+      <h3>⚠️ Possible Causes</h3>
+      <ul id="causes"></ul>
+    </div>
 
-      <div class="card result-box">
-        <h3>📘 Error Explanation</h3>
-        <p id="explanation">No error analyzed yet.</p>
-      </div>
-
-      <div class="card result-box">
-        <h3>⚠️ Possible Causes</h3>
-        <ul id="causes">
-          <li>Enter an error to see causes.</li>
-        </ul>
-      </div>
-
-      <div class="card result-box">
-        <h3>🛠️ Suggested Solutions</h3>
-        <ul id="solutions">
-          <li>Enter an error to see solutions.</li>
-        </ul>
-      </div>
-
+    <div class="card">
+      <h3>🛠️ Suggested Solutions</h3>
+      <ul id="solutions"></ul>
     </div>
 
   </div>
 
-  <!-- ===== OFFLINE POPUP ===== -->
-  <div id="offlinePopup">
-    <div class="popup-box">
-      <h3>Offline Mode</h3>
-      <p>
-        This error is not found in offline mode.<br>
-        Please connect to the internet for advanced analysis.
-      </p>
-      <button onclick="closePopup()">Got it</button>
-    </div>
+</div>
+
+<!-- Offline Popup -->
+<div id="offlinePopup">
+  <div class="popup-box">
+    <p>
+      This error is not found in offline mode.<br>
+      Please connect to the internet for advanced analysis.
+    </p>
+    <button onclick="closePopup()">Got it</button>
   </div>
+</div>
 
-  <!-- ===== JAVASCRIPT ===== -->
-  <script>
-    console.log("CloudLab Manager JS Loaded");
+<script>
+  const knownErrors = [
+    {
+      pattern: /module not found|modulenotfounderror|cannot find module/i,
+      category: "Programming",
+      explanation: "The program is trying to use a module or package that is not installed.",
+      causes: ["Package not installed", "Wrong module name"],
+      solutions: ["Install the package", "Check spelling"]
+    },
+    {
+      pattern: /EADDRINUSE|port already in use/i,
+      category: "System",
+      explanation: "The selected port is already in use.",
+      causes: ["Another app is running"],
+      solutions: ["Stop the process", "Change port"]
+    }
+  ];
 
-    const knownErrors = [
-      {
-        pattern: /module not found|modulenotfounderror|cannot find module/i,
-        explanation: "The program is trying to use a module or package that is not installed.",
-        causes: [
-          "The required package is not installed.",
-          "The module name is misspelled.",
-          "The virtual environment is not activated."
-        ],
-        solutions: [
-          "Install the required package using pip or npm.",
-          "Check the module name spelling.",
-          "Activate the correct virtual environment."
-        ]
-      },
-      {
-        pattern: /port already in use|EADDRINUSE/i,
-        explanation: "The selected port is already being used by another process.",
-        causes: [
-          "Another application is running on the same port.",
-          "A previous instance of the server is still active."
-        ],
-        solutions: [
-          "Stop the process using the port.",
-          "Change the port number.",
-          "Restart the system."
-        ]
-      },
-      {
-        pattern: /permission denied|EACCES/i,
-        explanation: "The system blocked access due to insufficient permissions.",
-        causes: [
-          "Restricted file or directory access.",
-          "Command requires administrator privileges."
-        ],
-        solutions: [
-          "Run the command as administrator.",
-          "Change file permissions."
-        ]
-      },
-      {
-        pattern: /command not found/i,
-        explanation: "The system does not recognize the entered command.",
-        causes: [
-          "The software is not installed.",
-          "The command is misspelled."
-        ],
-        solutions: [
-          "Install the required software.",
-          "Check the command spelling."
-        ]
-      }
-    ];
+  function analyzeError() {
+    const btn = analyzeBtn;
+    const input = errorInput.value.trim();
 
-    function analyzeError() {
-      const input = document.getElementById("errorInput").value.trim();
-      const explanationEl = document.getElementById("explanation");
-      const causesEl = document.getElementById("causes");
-      const solutionsEl = document.getElementById("solutions");
+    if (!input) return alert("Enter an error");
 
-      if (!input) {
-        alert("Please enter an error message");
-        return;
-      }
+    btn.classList.add("loading");
+    btn.innerHTML = `<span class="spinner"></span>Analyzing...`;
 
-      const foundError = knownErrors.find(err => err.pattern.test(input));
+    setTimeout(() => {
+      const err = knownErrors.find(e => e.pattern.test(input));
 
-      if (foundError) {
-        explanationEl.innerText = foundError.explanation;
-
-        causesEl.innerHTML = "";
-        foundError.causes.forEach(cause => {
-          causesEl.innerHTML += `<li>${cause}</li>`;
-        });
-
-        solutionsEl.innerHTML = "";
-        foundError.solutions.forEach(solution => {
-          solutionsEl.innerHTML += `<li>${solution}</li>`;
-        });
+      if (err) {
+        categoryBadge.textContent = err.category;
+        categoryBadge.className = `badge ${err.category}`;
+        explanation.textContent = err.explanation;
+        causes.innerHTML = err.causes.map(c => `<li>${c}</li>`).join("");
+        solutions.innerHTML = err.solutions.map(s => `<li>${s}</li>`).join("");
       } else {
-        explanationEl.innerText =
-          "This error is not available in offline mode.";
-
-        causesEl.innerHTML =
-          "<li>Internet connection required for advanced analysis.</li>";
-
-        solutionsEl.innerHTML =
-          "<li>Please connect to the internet to analyze this error using AI.</li>";
-
-        showPopup(); // ✅ SHOW POPUP
+        categoryBadge.textContent = "Unknown";
+        categoryBadge.className = "badge Network";
+        explanation.textContent = "This error is not available in offline mode.";
+        causes.innerHTML = "<li>Internet connection required.</li>";
+        solutions.innerHTML = "<li>Please connect to the internet.</li>";
+        showPopup();
       }
-    }
 
-    function showPopup() {
-      document.getElementById("offlinePopup").style.display = "flex";
-    }
+      btn.classList.remove("loading");
+      btn.innerHTML = "Analyze Error";
+    }, 1000);
+  }
 
-    function closePopup() {
-      document.getElementById("offlinePopup").style.display = "none";
-    }
-  </script>
+  function showPopup() {
+    offlinePopup.style.display = "flex";
+  }
+
+  function closePopup() {
+    offlinePopup.style.display = "none";
+  }
+</script>
 
 </body>
 </html>
