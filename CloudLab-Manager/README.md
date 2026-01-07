@@ -1,38 +1,37 @@
 # 🌩️ CloudLab Manager  
-### Intelligent Error Explanation & Resolution Tool
+### Intelligent Error Explanation Tool
 
-CloudLab Manager is a hybrid error explanation platform that helps beginners and developers understand technical error messages in a simple, human-friendly way.  
-It works offline for common errors and online using AI for advanced or unknown errors.
+CloudLab Manager is an intelligent, rule-based error explanation system designed to help beginners and developers understand technical error messages in a simple and human-friendly way.
+
+The platform analyzes common programming and system errors and provides clear explanations, possible causes, and suggested solutions through a clean web interface.
 
 ---
 
 ## 📘 Overview
 
-CloudLab Manager converts confusing programming and system error messages into:
+Programming and system error messages are often difficult to understand, especially for beginners.  
+CloudLab Manager simplifies this process by converting confusing error messages into easy-to-understand explanations.
 
-- Clear explanations  
-- Possible causes  
-- Step-by-step solutions  
+Users can paste an error message into the system and instantly receive:
+- What the error means  
+- Why it occurred  
+- How it can be fixed  
 
-Instead of searching forums or documentation, users can paste an error message and instantly understand what went wrong and how to fix it.
-
-The system follows a real-life hybrid model:
-- **Offline** → predefined common errors  
-- **Online** → AI-based error analysis (Gemini)
+This reduces time spent searching documentation or online forums.
 
 ---
 
 ## 🧠 Problem Statement
 
-Programming and system error messages are often difficult to understand, especially for beginners.
+Most programming error messages are technical and unclear.
 
-Errors such as:
-- Module not found  
-- Port already in use  
-- Permission denied  
+Examples:
+- `NameError: name 'x' is not defined`
+- `ModuleNotFoundError`
+- `Port already in use`
+- `Permission denied`
 
-do not clearly explain what happened, why it happened, or how to fix it.  
-As a result, users waste a lot of time searching online.
+These errors do not clearly explain the cause or solution, which makes debugging difficult for beginners and students.
 
 ---
 
@@ -41,11 +40,13 @@ As a result, users waste a lot of time searching online.
 CloudLab Manager acts as an **Error Explanation Engine**.
 
 ### Working Flow
-1. User pastes an error message  
-2. System checks known errors (offline)  
-3. If found → explanation is shown instantly  
-4. If not found → user is prompted to connect to the internet  
-5. AI analyzes the error and returns results  
+1. User pastes an error message into the web interface  
+2. The frontend sends the error message to the backend  
+3. The backend analyzes the error using predefined rules  
+4. The system returns:
+   - Explanation  
+   - Possible causes  
+   - Suggested solutions  
 
 ---
 
@@ -58,69 +59,63 @@ CloudLab Manager acts as an **Error Explanation Engine**.
 - Fetch API  
 
 ### ⚙️ Backend
-- Node.js  
-- Express.js  
+- Python  
+- Flask  
+- Flask-CORS  
 
-### 🧠 AI Integration
-- Gemini Pro API  
+### 🧠 Error Processing
+- Rule-based error detection  
+- Pattern matching using regular expressions  
 
 ---
 
 ## 🏗️ Architecture
 
 ### Client–Server Architecture
-- Frontend handles UI and user interaction  
-- Backend securely communicates with AI  
+- Frontend handles user input and UI rendering  
+- Backend exposes REST APIs  
+- Communication via HTTP requests  
 
-### Hybrid Processing Model
-- **Offline Mode** → Known error database (no internet required)  
-- **Online Mode** → AI-based error analysis (internet required)  
+### Processing Model
+- Error message is sent to backend  
+- Backend processes it using rule-based logic  
+- Structured response is returned to frontend  
 
 ---
 
 ## 🧩 Features
 
-- Offline support for common known errors  
-- Online AI-based analysis for unknown errors  
-- Beginner-friendly explanations  
-- Error categorization (System / Network / Language)  
-- Copy solution feature  
-- Loading state for better user experience  
+- Instant error explanation  
+- Beginner-friendly descriptions  
+- Possible causes and solutions  
+- Error categorization (Programming / System / Network)  
 - Responsive and clean UI  
-- Secure API key handling  
+- Backend health check API  
+- Graceful error handling  
 
 ---
 
-## 🧪 Known Errors Supported (Offline)
+## 🧪 Supported Errors (Rule-Based)
 
+- NameError / variable not defined  
 - Module not found  
 - Port already in use  
 - Permission denied  
 - Command not found  
 - File not found  
-- Syntax error  
-- Null / undefined reference  
-
----
-
-## 🌐 Online AI Support
-
-For errors not found in offline mode:
-- User is prompted to connect to the internet  
-- Error is sent to Gemini AI  
-- AI returns explanation, causes, and solutions  
+- Syntax errors  
 
 ---
 
 ## 🏗️ Project Structure
 
 ```bash
-cloudlab-manager/
+CloudLab-Manager/
 │
 ├── backend/
-│   ├── server.js
+│   ├── app.py
 │   ├── .env
-│   ├── package.json
+│   ├── requirements.txt
 │
 ├── frontend/
 │   ├── index.html
