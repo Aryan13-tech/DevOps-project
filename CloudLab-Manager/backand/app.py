@@ -28,7 +28,6 @@ ENV = os.getenv("ENV", "development")
 # =============================
 app = Flask(__name__)
 CORS(app)
-
 logging.basicConfig(level=logging.INFO)
 
 # =============================
@@ -43,7 +42,7 @@ if GEMINI_AVAILABLE and API_KEY:
         logging.error(f"❌ Gemini init failed: {e}")
         client = None
 else:
-    logging.warning("⚠️ Gemini not available (API key missing or SDK issue)")
+    logging.warning("⚠️ Gemini not available — Demo mode will be used")
 
 # =============================
 # Health Check
@@ -107,12 +106,33 @@ def fallback_analysis(error: str):
     }
 
 # =============================
+# Demo Gemini (SIMULATED AI)
+# =============================
+def demo_gemini_response(error_text: str):
+    return {
+        "success": True,
+        "source": "gemini-demo",
+        "explanation": (
+            "This error indicates a complex or application-specific issue that "
+            "is not covered by predefined rules. It usually occurs due to "
+            "unexpected logic flow or invalid state transitions in the system."
+        ),
+        "causes": [
+            "Unexpected state transition",
+            "Race condition or concurrency issue",
+            "Missing validation or error handling logic"
+        ],
+        "solutions": [
+            "Review recent code changes related to this feature",
+            "Add state validation and guard checks",
+            "Improve logging around this operation"
+        ]
+    }
+
+# =============================
 # Helper: Safe JSON Extraction
 # =============================
 def extract_json(text: str):
-    """
-    Extract JSON safely even if Gemini adds text around it
-    """
     text = text.strip()
     text = re.sub(r"```json|```", "", text)
     match = re.search(r"\{.*\}", text, re.S)
@@ -134,23 +154,22 @@ def analyze_error():
             "message": "No error provided"
         }), 400
 
-    # ===== TRY GEMINI (ONLINE AI) =====
+    # ===== TRY REAL GEMINI =====
     if client:
         try:
             prompt = f"""
 You are a senior software engineer and DevOps expert.
 
 Analyze the error below and respond ONLY with valid JSON.
-DO NOT add explanations outside JSON.
 
-JSON FORMAT (MANDATORY):
+FORMAT:
 {{
-  "explanation": "Clear explanation in simple language",
-  "causes": ["Cause 1", "Cause 2"],
-  "solutions": ["Solution 1", "Solution 2"]
+  "explanation": "string",
+  "causes": ["string"],
+  "solutions": ["string"]
 }}
 
-ERROR MESSAGE:
+ERROR:
 {error_text}
 """
 
@@ -162,46 +181,23 @@ ERROR MESSAGE:
             raw_text = response.text.strip()
             logging.info(f"🧠 Gemini raw response:\n{raw_text}")
 
-            try:
-                parsed = extract_json(raw_text)
-            except Exception:
-                logging.warning("⚠️ Gemini JSON parse failed, returning safe fallback")
-
-                return jsonify({
-                    "success": True,
-                    "source": "gemini",
-                    "explanation": raw_text[:600],
-                    "causes": [
-                        "Complex or application-specific issue",
-                        "State or logic mismatch"
-                    ],
-                    "solutions": [
-                        "Check logs around this error",
-                        "Review recent code changes",
-                        "Add validation and error handling"
-                    ]
-                })
+            parsed = extract_json(raw_text)
 
             return jsonify({
                 "success": True,
                 "source": "gemini",
-                "explanation": parsed.get("explanation", "No explanation provided"),
+                "explanation": parsed.get("explanation"),
                 "causes": parsed.get("causes", []),
                 "solutions": parsed.get("solutions", [])
             })
 
         except Exception as e:
-            logging.error(f"❌ Gemini failed: {e}")
+            logging.warning(f"⚠️ Gemini failed, using DEMO mode: {e}")
+            return jsonify(demo_gemini_response(error_text))
 
-    # ===== OFFLINE FALLBACK =====
-    result = fallback_analysis(error_text)
-    return jsonify({
-        "success": True,
-        "source": "rule-based",
-        "explanation": result["explanation"],
-        "causes": result["causes"],
-        "solutions": result["solutions"]
-    })
+    # ===== GEMINI NOT AVAILABLE → DEMO MODE =====
+    logging.info("ℹ️ Using Gemini DEMO mode")
+    return jsonify(demo_gemini_response(error_text))
 
 # =============================
 # Run Server
