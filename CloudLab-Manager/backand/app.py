@@ -4,122 +4,153 @@ from dotenv import load_dotenv
 import os
 import json
 import re
+import logging
 
+# =============================
+# Gemini Import (Safe)
+# =============================
 try:
     from google import genai
     GEMINI_AVAILABLE = True
-except:
+except Exception:
     GEMINI_AVAILABLE = False
 
 # =============================
-# Load env
+# Load Environment
 # =============================
 load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
 PORT = int(os.getenv("PORT", 5000))
+ENV = os.getenv("ENV", "development")
 
 # =============================
-# Flask app
+# Flask App
 # =============================
 app = Flask(__name__)
 CORS(app)
 
+logging.basicConfig(level=logging.INFO)
+
 # =============================
-# Gemini client
+# Gemini Client
 # =============================
 client = None
 if GEMINI_AVAILABLE and API_KEY:
     try:
         client = genai.Client(api_key=API_KEY)
-        print("✅ Gemini connected")
+        logging.info("✅ Gemini AI connected successfully")
     except Exception as e:
-        print("❌ Gemini init failed:", e)
+        logging.error(f"❌ Gemini init failed: {e}")
         client = None
+else:
+    logging.warning("⚠️ Gemini not available (API key missing or SDK issue)")
 
 # =============================
-# Health
+# Health Check
 # =============================
 @app.route("/health")
 def health():
-    return jsonify({"status": "OK"})
+    return jsonify({"status": "OK", "env": ENV})
 
 # =============================
-# Offline fallback
+# Offline Rule-Based Engine
 # =============================
-def fallback_analysis(error):
+def fallback_analysis(error: str):
     e = error.lower()
 
     if "no module named" in e:
         return {
-            "explanation": "A required Python package is missing.",
-            "causes": ["Dependency not installed", "Wrong virtual environment"],
-            "solutions": ["Run pip install <package>", "Activate correct venv"]
+            "explanation": "Python cannot find the required module.",
+            "causes": [
+                "The package is not installed",
+                "Wrong virtual environment"
+            ],
+            "solutions": [
+                "Run pip install <package>",
+                "Activate correct virtual environment"
+            ]
         }
 
-    if "exit code 1" in e:
+    if "connection refused" in e:
         return {
-            "explanation": "The process exited with a generic failure.",
-            "causes": ["Command error", "Build/runtime failure"],
-            "solutions": ["Check logs", "Run command manually"]
+            "explanation": "The application failed to connect to the server.",
+            "causes": [
+                "Backend server is not running",
+                "Wrong host or port"
+            ],
+            "solutions": [
+                "Start backend service",
+                "Verify host and port"
+            ]
         }
 
-    if "failed to pull image" in e:
+    if "unauthorized" in e or "401" in e:
         return {
-            "explanation": "Container image could not be downloaded.",
-            "causes": ["Wrong image name", "Private registry", "No internet"],
-            "solutions": ["Check image name", "Login to registry", "Check network"]
+            "explanation": "Authentication failed.",
+            "causes": [
+                "Invalid API key",
+                "Expired credentials"
+            ],
+            "solutions": [
+                "Regenerate API key",
+                "Check authentication headers"
+            ]
         }
 
     return {
         "explanation": "This error could not be classified automatically.",
         "causes": ["Unknown or complex error"],
-        "solutions": ["Search documentation", "Check logs"]
+        "solutions": [
+            "Search official documentation",
+            "Check application logs"
+        ]
     }
 
 # =============================
-# Helper: extract JSON safely
+# Helper: Safe JSON Extraction
 # =============================
-def extract_json(text):
+def extract_json(text: str):
     """
-    Removes markdown and extra text, returns pure JSON
+    Extract JSON safely even if Gemini adds text around it
     """
     text = text.strip()
-
-    # Remove ```json ``` wrappers
     text = re.sub(r"```json|```", "", text)
-
-    # Extract first JSON object
     match = re.search(r"\{.*\}", text, re.S)
     if not match:
-        raise ValueError("No JSON found")
-
+        raise ValueError("No JSON found in Gemini response")
     return json.loads(match.group())
 
 # =============================
-# Analyze API
+# Analyze Error API
 # =============================
 @app.route("/analyze-error", methods=["POST"])
 def analyze_error():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     error_text = data.get("error", "").strip()
 
     if not error_text:
-        return jsonify({"success": False, "message": "No error provided"}), 400
+        return jsonify({
+            "success": False,
+            "message": "No error provided"
+        }), 400
 
-    # ===== TRY ONLINE (GEMINI) =====
+    # ===== TRY GEMINI (ONLINE AI) =====
     if client:
         try:
             prompt = f"""
-You are a senior DevOps engineer.
+You are a senior software engineer and DevOps expert.
 
-Return ONLY JSON in this format:
+Analyze the error below and respond ONLY with valid JSON.
+DO NOT add explanations outside JSON.
+
+JSON FORMAT (MANDATORY):
 {{
-  "explanation": "...",
-  "causes": ["..."],
-  "solutions": ["..."]
+  "explanation": "Clear explanation in simple language",
+  "causes": ["Cause 1", "Cause 2"],
+  "solutions": ["Solution 1", "Solution 2"]
 }}
 
-ERROR:
+ERROR MESSAGE:
 {error_text}
 """
 
@@ -128,29 +159,56 @@ ERROR:
                 contents=prompt
             )
 
-            parsed = extract_json(response.text)
+            raw_text = response.text.strip()
+            logging.info(f"🧠 Gemini raw response:\n{raw_text}")
+
+            try:
+                parsed = extract_json(raw_text)
+            except Exception:
+                logging.warning("⚠️ Gemini JSON parse failed, returning safe fallback")
+
+                return jsonify({
+                    "success": True,
+                    "source": "gemini",
+                    "explanation": raw_text[:600],
+                    "causes": [
+                        "Complex or application-specific issue",
+                        "State or logic mismatch"
+                    ],
+                    "solutions": [
+                        "Check logs around this error",
+                        "Review recent code changes",
+                        "Add validation and error handling"
+                    ]
+                })
 
             return jsonify({
                 "success": True,
                 "source": "gemini",
-                "explanation": parsed["explanation"],
-                "causes": parsed["causes"],
-                "solutions": parsed["solutions"]
+                "explanation": parsed.get("explanation", "No explanation provided"),
+                "causes": parsed.get("causes", []),
+                "solutions": parsed.get("solutions", [])
             })
 
         except Exception as e:
-            print("⚠️ Gemini failed:", e)
+            logging.error(f"❌ Gemini failed: {e}")
 
     # ===== OFFLINE FALLBACK =====
     result = fallback_analysis(error_text)
     return jsonify({
         "success": True,
         "source": "rule-based",
-        **result
+        "explanation": result["explanation"],
+        "causes": result["causes"],
+        "solutions": result["solutions"]
     })
 
 # =============================
-# Run
+# Run Server
 # =============================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=PORT,
+        debug=(ENV == "development")
+    )

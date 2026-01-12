@@ -1,77 +1,170 @@
 export const errorRules = [
 
-  // Python missing module
+  // =========================
+  // API / AUTH ERRORS
+  // =========================
   {
-    match: /ModuleNotFoundError: No module named ['"](.+)['"]/i,
-    explanation: "Python cannot find the required module in your environment.",
+    match: /api key|invalid api|authentication failed|unauthorized/i,
+    explanation: "Authentication failed because the API key or token is invalid or missing.",
     causes: [
-      "The package is not installed",
-      "Wrong virtual environment is active"
+      "API key is incorrect or expired",
+      "API key not loaded from environment variables",
+      "Authorization header missing"
     ],
     solutions: [
-      "Install the package using pip install <package-name>",
-      "Activate the correct virtual environment"
+      "Verify API key in .env file",
+      "Generate a new API key",
+      "Restart the backend service"
     ]
   },
 
-  // Pydantic BaseSettings (VERY IMPORTANT)
+  // =========================
+  // RATE LIMIT
+  // =========================
   {
-    match: /BaseSettings.*pydantic/i,
-    explanation: "This error occurs because Pydantic v2 moved BaseSettings to a new package.",
+    match: /429|too many requests|rate limit/i,
+    explanation: "The server rejected the request because too many requests were sent in a short time.",
     causes: [
-      "You are using Pydantic version 2",
-      "Your code was written for Pydantic v1"
+      "API rate limit exceeded",
+      "Free-tier quota reached",
+      "Too many parallel requests"
     ],
     solutions: [
-      "Install pydantic-settings",
-      "Change import to: from pydantic_settings import BaseSettings",
-      "OR downgrade pydantic to version 1"
+      "Wait and retry after some time",
+      "Reduce request frequency",
+      "Upgrade the API plan"
     ]
   },
 
-  // Connection refused
+  // =========================
+  // SERVICE UNAVAILABLE
+  // =========================
   {
-    match: /ConnectionError|connection refused|Errno 111/i,
-    explanation: "The application failed to connect to a server.",
+    match: /503|service unavailable/i,
+    explanation: "The service is temporarily unavailable and cannot handle the request.",
     causes: [
-      "Backend server is not running",
-      "Wrong host or port",
-      "Firewall blocking the connection"
+      "Server overload",
+      "Service downtime or maintenance"
     ],
     solutions: [
-      "Start the backend server",
-      "Verify host and port",
-      "Check firewall or antivirus"
+      "Retry after a few minutes",
+      "Check the service status page"
     ]
   },
 
-  // Docker / Kubernetes image pull
+  // =========================
+  // GATEWAY TIMEOUT
+  // =========================
   {
-    match: /failed to pull image|pod sandbox/i,
-    explanation: "The container runtime failed to download the required image.",
+    match: /504|gateway timeout/i,
+    explanation: "The server did not respond within the allowed time.",
     causes: [
-      "Incorrect image name",
-      "Private registry authentication required",
+      "Upstream service is slow",
+      "Network latency issues"
+    ],
+    solutions: [
+      "Increase request timeout",
+      "Check upstream service health"
+    ]
+  },
+
+  // =========================
+  // DNS ERROR
+  // =========================
+  {
+    match: /dns|nameresolutionerror|failed to resolve host/i,
+    explanation: "The domain name could not be resolved to an IP address.",
+    causes: [
+      "Incorrect hostname",
+      "DNS server issue",
       "No internet connection"
     ],
     solutions: [
-      "Verify the image name",
-      "Login to the container registry",
-      "Check network connectivity"
+      "Verify the hostname",
+      "Check DNS and network settings"
     ]
   },
 
-  // HTTP 401 Unauthorized
+  // =========================
+  // SSL / TLS
+  // =========================
   {
-    match: /401 Unauthorized|HTTPError: 401/i,
-    explanation: "The request was rejected due to missing or invalid authentication.",
+    match: /ssl|certificate verify failed|sslhandshake/i,
+    explanation: "SSL/TLS certificate verification failed.",
     causes: [
-      "Missing API key or token",
-      "Expired credentials"
+      "Expired or invalid certificate",
+      "Incorrect system date and time",
+      "Invalid certificate chain"
     ],
     solutions: [
-      "Provide valid authentication credentials",
-      "Regenerate API token"
+      "Update certificates",
+      "Check system time",
+      "Verify HTTPS configuration"
+    ]
+  },
+
+  // =========================
+  // TIMEOUT (GENERAL)
+  // =========================
+  {
+    match: /timeout|timed out/i,
+    explanation: "The request exceeded the allowed response time.",
+    causes: [
+      "Slow or unstable internet connection",
+      "External API service is down or overloaded",
+      "Timeout value too low"
+    ],
+    solutions: [
+      "Check your internet connection",
+      "Increase request timeout",
+      "Retry the request later"
+    ]
+  },
+
+  // =========================
+  // INVALID REQUEST
+  // =========================
+  {
+    match: /invalid request|required|missing.*field|prompt field/i,
+    explanation: "The request is missing required input fields.",
+    causes: [
+      "Prompt field not provided",
+      "Empty or malformed request body"
+    ],
+    solutions: [
+      "Provide all required fields",
+      "Validate input before sending request"
+    ]
+  },
+
+  // =========================
+  // PYTHON MODULE ERROR
+  // =========================
+  {
+    match: /(ModuleNotFoundError|No module named)/i,
+    explanation: "Python cannot find the required module.",
+    causes: [
+      "Package not installed",
+      "Wrong virtual environment"
+    ],
+    solutions: [
+      "Run: pip install <package>",
+      "Activate correct virtual environment"
+    ]
+  },
+
+  // =========================
+  // GENERIC FALLBACK (ALWAYS LAST)
+  // =========================
+  {
+    match: /.*/i,
+    explanation: "This error could not be classified automatically.",
+    causes: [
+      "Unknown or complex error"
+    ],
+    solutions: [
+      "Check logs",
+      "Search official documentation"
     ]
   }
 ];
