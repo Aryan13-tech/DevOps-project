@@ -3,208 +3,111 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import json
-import re
 import logging
+import google.generativeai as genai
+from error_rules import ERROR_RULES
 
-# =============================
-# Gemini Import (Safe)
-# =============================
-try:
-    from google import genai
-    GEMINI_AVAILABLE = True
-except Exception:
-    GEMINI_AVAILABLE = False
-
-# =============================
-# Load Environment
-# =============================
+# -------------------------
+# Setup
+# -------------------------
 load_dotenv()
-API_KEY = os.getenv("GEMINI_API_KEY")
-PORT = int(os.getenv("PORT", 5000))
-ENV = os.getenv("ENV", "development")
 
-# =============================
-# Flask App
-# =============================
-app = Flask(__name__)
-CORS(app)
 logging.basicConfig(level=logging.INFO)
 
-# =============================
-# Gemini Client
-# =============================
-client = None
-if GEMINI_AVAILABLE and API_KEY:
-    try:
-        client = genai.Client(api_key=API_KEY)
-        logging.info("✅ Gemini AI connected successfully")
-    except Exception as e:
-        logging.error(f"❌ Gemini init failed: {e}")
-        client = None
-else:
-    logging.warning("⚠️ Gemini not available — Demo mode will be used")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_AVAILABLE = False
 
-# =============================
-# Health Check
-# =============================
-@app.route("/health")
-def health():
-    return jsonify({"status": "OK", "env": ENV})
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    GEMINI_AVAILABLE = True
 
-# =============================
-# Offline Rule-Based Engine
-# =============================
-def fallback_analysis(error: str):
-    e = error.lower()
+app = Flask(__name__)
+CORS(app)
 
-    if "no module named" in e:
-        return {
-            "explanation": "Python cannot find the required module.",
-            "causes": [
-                "The package is not installed",
-                "Wrong virtual environment"
-            ],
-            "solutions": [
-                "Run pip install <package>",
-                "Activate correct virtual environment"
-            ]
-        }
+# -------------------------
+# Rule matcher
+# -------------------------
+def match_rule(error_text):
+    for rule in ERROR_RULES:
+        if rule["pattern"].search(error_text):
+            return rule
+    return None
 
-    if "connection refused" in e:
-        return {
-            "explanation": "The application failed to connect to the server.",
-            "causes": [
-                "Backend server is not running",
-                "Wrong host or port"
-            ],
-            "solutions": [
-                "Start backend service",
-                "Verify host and port"
-            ]
-        }
+# -------------------------
+# AI fallback
+# -------------------------
+def analyze_with_gemini(error_text):
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    if "unauthorized" in e or "401" in e:
-        return {
-            "explanation": "Authentication failed.",
-            "causes": [
-                "Invalid API key",
-                "Expired credentials"
-            ],
-            "solutions": [
-                "Regenerate API key",
-                "Check authentication headers"
-            ]
-        }
+    prompt = f"""
+Respond ONLY in valid JSON:
 
-    return {
-        "explanation": "This error could not be classified automatically.",
-        "causes": ["Unknown or complex error"],
-        "solutions": [
-            "Search official documentation",
-            "Check application logs"
-        ]
-    }
-
-# =============================
-# Demo Gemini (SIMULATED AI)
-# =============================
-def demo_gemini_response(error_text: str):
-    return {
-        "success": True,
-        "source": "gemini-demo",
-        "explanation": (
-            "This error indicates a complex or application-specific issue that "
-            "is not covered by predefined rules. It usually occurs due to "
-            "unexpected logic flow or invalid state transitions in the system."
-        ),
-        "causes": [
-            "Unexpected state transition",
-            "Race condition or concurrency issue",
-            "Missing validation or error handling logic"
-        ],
-        "solutions": [
-            "Review recent code changes related to this feature",
-            "Add state validation and guard checks",
-            "Improve logging around this operation"
-        ]
-    }
-
-# =============================
-# Helper: Safe JSON Extraction
-# =============================
-def extract_json(text: str):
-    text = text.strip()
-    text = re.sub(r"```json|```", "", text)
-    match = re.search(r"\{.*\}", text, re.S)
-    if not match:
-        raise ValueError("No JSON found in Gemini response")
-    return json.loads(match.group())
-
-# =============================
-# Analyze Error API
-# =============================
-@app.route("/analyze-error", methods=["POST"])
-def analyze_error():
-    data = request.get_json(silent=True) or {}
-    error_text = data.get("error", "").strip()
-
-    if not error_text:
-        return jsonify({
-            "success": False,
-            "message": "No error provided"
-        }), 400
-
-    # ===== TRY REAL GEMINI =====
-    if client:
-        try:
-            prompt = f"""
-You are a senior software engineer and DevOps expert.
-
-Analyze the error below and respond ONLY with valid JSON.
-
-FORMAT:
 {{
-  "explanation": "string",
-  "causes": ["string"],
-  "solutions": ["string"]
+  "summary": "",
+  "why_it_happened": [],
+  "how_to_fix": [],
+  "real_world_tip": ""
 }}
 
-ERROR:
+Error:
 {error_text}
 """
 
-            response = client.models.generate_content(
-                model="models/gemini-2.0-flash",
-                contents=prompt
-            )
+    response = model.generate_content(prompt)
+    text = response.text.strip()
 
-            raw_text = response.text.strip()
-            logging.info(f"🧠 Gemini raw response:\n{raw_text}")
+    start = text.find("{")
+    end = text.rfind("}") + 1
 
-            parsed = extract_json(raw_text)
+    return json.loads(text[start:end])
 
+# -------------------------
+# API Route
+# -------------------------
+@app.route("/analyze-error", methods=["POST"])
+def analyze_error():
+    data = request.get_json()
+    error_text = data.get("error", "").strip()
+
+    if not error_text:
+        return jsonify({"success": False, "message": "No error provided"}), 400
+
+    # Rule-based first
+    rule = match_rule(error_text)
+    if rule:
+        return jsonify({
+            "success": True,
+            "error_category": rule["category"],
+            "source": "rule-engine",
+            "summary": rule["summary"],
+            "why_it_happened": rule["why_it_happened"],
+            "how_to_fix": rule["how_to_fix"],
+            "real_world_tip": rule["real_world_tip"]
+        })
+
+    # AI fallback
+    if GEMINI_AVAILABLE:
+        try:
+            ai = analyze_with_gemini(error_text)
             return jsonify({
                 "success": True,
-                "source": "gemini",
-                "explanation": parsed.get("explanation"),
-                "causes": parsed.get("causes", []),
-                "solutions": parsed.get("solutions", [])
+                "error_category": "Unknown / AI",
+                "source": "gemini-ai",
+                **ai
             })
-
         except Exception as e:
-            logging.warning(f"⚠️ Gemini failed, using DEMO mode: {e}")
-            return jsonify(demo_gemini_response(error_text))
+            logging.error(e)
 
-    # ===== GEMINI NOT AVAILABLE → DEMO MODE =====
-    logging.info("ℹ️ Using Gemini DEMO mode")
-    return jsonify(demo_gemini_response(error_text))
+    # Final fallback
+    return jsonify({
+        "success": True,
+        "error_category": "Unknown",
+        "source": "fallback",
+        "summary": "The error could not be classified automatically.",
+        "why_it_happened": ["The error is uncommon or malformed"],
+        "how_to_fix": ["Check logs and official documentation"],
+        "real_world_tip": "Production systems rely on monitoring and logs for unknown issues."
+    })
 
-# =============================
-# Run Server
-# =============================
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=PORT,
-        debug=(ENV == "development")
-    )
+    app.run(host="127.0.0.1", port=5000)
