@@ -12,8 +12,8 @@ pipeline {
         EC2_HOST = '18.232.35.230'
 
         // ✅ FIXED PATHS (real Dockerfile locations)
-        BACKEND_DIR  = 'CloudLab-Manager/backend/backend'
-        FRONTEND_DIR = 'CloudLab-Manager/frontend/frontend'
+        BACKEND_DIR  = 'CloudLab-Manager/backend'
+        FRONTEND_DIR = 'CloudLab-Manager/frontend'
     }
 
     stages {
