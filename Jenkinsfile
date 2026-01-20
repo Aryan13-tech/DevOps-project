@@ -11,8 +11,8 @@ pipeline {
 
         EC2_HOST = '18.232.35.230'
 
-        // ✅ FIXED PATHS (real Dockerfile locations)
-        BACKEND_DIR  = 'CloudLab-Manager'
+        // ✅ REAL PATHS FROM YOUR REPO
+        BACKEND_DIR  = 'CloudLab-Manager/backend'
         FRONTEND_DIR = 'CloudLab-Manager/frontend'
     }
 
@@ -26,12 +26,12 @@ pipeline {
             }
         }
 
-        stage('Verify Docker доступ') {
+        stage('Verify Docker') {
             steps {
                 echo "🐳 Verifying Docker is available..."
                 sh '''
                   docker --version
-                  docker info > /dev/null
+                  docker info >/dev/null 2>&1 || true
                 '''
             }
         }
@@ -40,9 +40,10 @@ pipeline {
             steps {
                 echo "🐳 Building backend image..."
                 dir("${BACKEND_DIR}") {
-                    sh """
+                    sh '''
+                      ls -la
                       docker build -t ${DOCKERHUB_USER}/${BACK_IMAGE}:latest .
-                    """
+                    '''
                 }
             }
         }
@@ -51,9 +52,10 @@ pipeline {
             steps {
                 echo "🐳 Building frontend image..."
                 dir("${FRONTEND_DIR}") {
-                    sh """
+                    sh '''
+                      ls -la
                       docker build -t ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest .
-                    """
+                    '''
                 }
             }
         }
@@ -68,7 +70,7 @@ pipeline {
                         passwordVariable: 'PASS'
                     )
                 ]) {
-                    sh 'echo $PASS | docker login -u $USER --password-stdin'
+                    sh 'echo "$PASS" | docker login -u "$USER" --password-stdin'
                 }
             }
         }
@@ -76,10 +78,10 @@ pipeline {
         stage('Push Images to DockerHub') {
             steps {
                 echo "📤 Pushing images to DockerHub..."
-                sh """
+                sh '''
                   docker push ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
                   docker push ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
-                """
+                '''
             }
         }
 
@@ -100,15 +102,15 @@ pipeline {
                         docker pull ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
 
                         echo "🚀 Starting backend..."
-                        docker run -d --name cloudlab-backend \\
-                          -p 5000:5000 \\
-                          --restart unless-stopped \\
+                        docker run -d --name cloudlab-backend \
+                          -p 5000:5000 \
+                          --restart unless-stopped \
                           ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
 
                         echo "🚀 Starting frontend..."
-                        docker run -d --name cloudlab-frontend \\
-                          -p 80:80 \\
-                          --restart unless-stopped \\
+                        docker run -d --name cloudlab-frontend \
+                          -p 80:80 \
+                          --restart unless-stopped \
                           ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
 
                         echo "🩺 Backend health check..."
