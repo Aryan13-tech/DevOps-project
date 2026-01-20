@@ -4,15 +4,16 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         SSH_CREDENTIALS       = 'ec2-ssh'
-        DOCKERHUB_USER       = 'aryansarvaiya13'
+        DOCKERHUB_USER        = 'aryansarvaiya13'
 
         BACK_IMAGE  = 'cloudlab-backend'
         FRONT_IMAGE = 'cloudlab-frontend'
 
         EC2_HOST = '18.232.35.230'
 
-        BACKEND_DIR  = 'CloudLab-Manager/backend'
-        FRONTEND_DIR = 'CloudLab-Manager/frontend'
+        // ✅ FIXED PATHS (real Dockerfile locations)
+        BACKEND_DIR  = 'CloudLab-Manager/backend/backend'
+        FRONTEND_DIR = 'CloudLab-Manager/frontend/frontend'
     }
 
     stages {
@@ -25,19 +26,12 @@ pipeline {
             }
         }
 
-        // 🔧 FIX: Ensure Docker CLI exists inside Jenkins container
-        stage('Install Docker CLI') {
+        stage('Verify Docker доступ') {
             steps {
-                echo "🐳 Ensuring Docker CLI is installed..."
+                echo "🐳 Verifying Docker is available..."
                 sh '''
-                if ! command -v docker >/dev/null 2>&1; then
-                  echo "Docker not found. Installing..."
-                  apt-get update
-                  apt-get install -y docker.io
-                else
-                  echo "Docker already installed"
-                fi
-                docker --version
+                  docker --version
+                  docker info > /dev/null
                 '''
             }
         }
