@@ -11,8 +11,8 @@ pipeline {
 
         EC2_HOST = '18.232.35.230'
 
-        // ✅ REAL PATHS FROM YOUR REPO
-        BACKEND_DIR  = 'CloudLab-Manager/backend'
+        // ✅ REAL PATHS (based on Jenkins log)
+        BACKEND_DIR  = 'CloudLab-Manager/backend/backend'
         FRONTEND_DIR = 'CloudLab-Manager/frontend'
     }
 
@@ -41,7 +41,7 @@ pipeline {
                 echo "🐳 Building backend image..."
                 dir("${BACKEND_DIR}") {
                     sh '''
-                      echo "📂 Backend directory:"
+                      echo "📂 Backend build directory:"
                       pwd
                       ls -la
 
@@ -56,7 +56,7 @@ pipeline {
                 echo "🐳 Building frontend image..."
                 dir("${FRONTEND_DIR}") {
                     sh '''
-                      echo "📂 Frontend directory:"
+                      echo "📂 Frontend build directory:"
                       pwd
                       ls -la
 
