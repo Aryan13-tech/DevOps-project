@@ -25,6 +25,23 @@ pipeline {
             }
         }
 
+        // 🔧 FIX: Ensure Docker CLI exists inside Jenkins container
+        stage('Install Docker CLI') {
+            steps {
+                echo "🐳 Ensuring Docker CLI is installed..."
+                sh '''
+                if ! command -v docker >/dev/null 2>&1; then
+                  echo "Docker not found. Installing..."
+                  apt-get update
+                  apt-get install -y docker.io
+                else
+                  echo "Docker already installed"
+                fi
+                docker --version
+                '''
+            }
+        }
+
         stage('Build Backend Image') {
             steps {
                 echo "🐳 Building backend image..."
@@ -89,15 +106,15 @@ pipeline {
                         docker pull ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
 
                         echo "🚀 Starting backend..."
-                        docker run -d --name cloudlab-backend \
-                          -p 5000:5000 \
-                          --restart unless-stopped \
+                        docker run -d --name cloudlab-backend \\
+                          -p 5000:5000 \\
+                          --restart unless-stopped \\
                           ${DOCKERHUB_USER}/${BACK_IMAGE}:latest
 
                         echo "🚀 Starting frontend..."
-                        docker run -d --name cloudlab-frontend \
-                          -p 80:80 \
-                          --restart unless-stopped \
+                        docker run -d --name cloudlab-frontend \\
+                          -p 80:80 \\
+                          --restart unless-stopped \\
                           ${DOCKERHUB_USER}/${FRONT_IMAGE}:latest
 
                         echo "🩺 Backend health check..."
