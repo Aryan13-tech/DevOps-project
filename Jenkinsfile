@@ -9,20 +9,15 @@ pipeline {
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         SSH_CREDENTIALS       = 'ec2-ssh'
         DOCKERHUB_USER        = 'aryansarvaiya13'
-
-        BACK_IMAGE  = 'cloudlab-backend'
-        FRONT_IMAGE = 'cloudlab-frontend'
-
-        EC2_HOST = '18.232.35.230'
-
-        BACKEND_DIR  = 'CloudLab-Manager/backend'
-        FRONTEND_DIR = 'CloudLab-Manager/frontend'
-
-        BUILD_TAG = "${env.BUILD_NUMBER}"
+        BACK_IMAGE            = 'cloudlab-backend'
+        FRONT_IMAGE           = 'cloudlab-frontend'
+        EC2_HOST              = '18.232.35.230'
+        BACKEND_DIR           = 'CloudLab-Manager/backend'
+        FRONTEND_DIR          = 'CloudLab-Manager/frontend'
+        BUILD_TAG             = "${env.BUILD_NUMBER}"
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 cleanWs()
@@ -30,13 +25,14 @@ pipeline {
             }
         }
 
+        // ADDED THIS BACK: Running inside python container to fix 'pip not found'
         stage('Backend Sanity Check') {
+            agent {
+                docker { image 'python:3.9-slim' }
+            }
             steps {
-                dir("${BACKEND_DIR}") {
-                    sh '''
-                    pip install -r requirements.txt
-                    echo "Backend ready"
-                    '''
+                dir("${env.BACKEND_DIR}") {
+                    sh 'pip install -r requirements.txt'
                 }
             }
         }
