@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     environment {
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         SSH_CREDENTIALS       = 'ec2-ssh'
@@ -18,6 +22,13 @@ pipeline {
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                cleanWs()
+                git branch: 'main', url: 'https://github.com/Aryan13-tech/DevOps-project.git'
+            }
+        }
 
         stage('Backend Sanity Check') {
             steps {
