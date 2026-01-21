@@ -1,6 +1,8 @@
+version: '3.8'
+
 services:
   backend:
-    image: cloudlab-backend:latest
+    image: aryansarvaiya13/cloudlab-backend:latest
     container_name: cloudlab-backend
     ports:
       - "5000:5000"
@@ -9,12 +11,10 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: nginx:alpine
+    image: aryansarvaiya13/cloudlab-frontend:latest
     container_name: cloudlab-frontend
     ports:
-      - "8080:80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
