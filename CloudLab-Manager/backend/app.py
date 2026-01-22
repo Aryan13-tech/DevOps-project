@@ -7,6 +7,11 @@ import logging
 from error_rules import ERROR_RULES
 
 # =========================
+# Prometheus
+# =========================
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
+# =========================
 # Setup
 # =========================
 load_dotenv()
@@ -42,6 +47,21 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================
+# PROMETHEUS METRICS
+# =========================
+REQUEST_COUNT = Counter(
+    "cloudlab_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint"]
+)
+
+REQUEST_LATENCY = Histogram(
+    "cloudlab_request_latency_seconds",
+    "Request latency",
+    ["endpoint"]
+)
+
+# =========================
 # Rule matcher
 # =========================
 def match_rule(error_text: str):
@@ -54,10 +74,6 @@ def match_rule(error_text: str):
 # AI fallback (ULTRA SAFE)
 # =========================
 def analyze_with_gemini(error_text: str):
-    """
-    AI fallback using new google.genai SDK (SAFE + future-proof)
-    Never crashes the API.
-    """
     if not client or not types:
         raise RuntimeError("Gemini client not initialized")
 
@@ -90,7 +106,6 @@ Error:
         raise ValueError("Empty AI response")
 
     text = response.text.strip()
-
     start = text.find("{")
     end = text.rfind("}") + 1
 
@@ -104,6 +119,7 @@ Error:
 # =========================
 @app.route("/health", methods=["GET"])
 def health():
+    REQUEST_COUNT.labels("GET", "/health").inc()
     return jsonify({
         "status": "ok",
         "ai_available": GEMINI_AVAILABLE
@@ -114,6 +130,8 @@ def health():
 # =========================
 @app.route("/analyze-error", methods=["POST"])
 def analyze_error():
+    REQUEST_COUNT.labels("POST", "/analyze-error").inc()
+
     try:
         data = request.get_json(force=True)
     except Exception:
@@ -184,6 +202,13 @@ def analyze_error():
         ],
         "real_world_tip": "Production systems improve by converting repeated unknown errors into rules."
     })
+
+# =========================
+# PROMETHEUS METRICS ENDPOINT
+# =========================
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 # =========================
 # Dev run (Gunicorn in Docker)
