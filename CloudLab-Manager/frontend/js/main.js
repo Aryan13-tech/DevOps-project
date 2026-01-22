@@ -1,4 +1,5 @@
-const BACKEND_URL = "http://127.0.0.1:5000/analyze-error";
+const API_URL = "http://3.238.231.19:5000/analyze-error";
+
 
 const analyzeBtn = document.getElementById("analyzeBtn");
 const errorInput = document.getElementById("errorInput");
