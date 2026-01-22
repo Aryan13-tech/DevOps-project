@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import json
 import logging
+import time
 from error_rules import ERROR_RULES
 
 # =========================
@@ -49,15 +50,16 @@ CORS(app)
 # =========================
 # PROMETHEUS METRICS
 # =========================
+
 REQUEST_COUNT = Counter(
-    "cloudlab_requests_total",
-    "Total number of API requests",
-    ["method", "endpoint"]
+    "cloudlab_http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"]
 )
 
 REQUEST_LATENCY = Histogram(
-    "cloudlab_request_latency_seconds",
-    "Request latency",
+    "cloudlab_http_request_latency_seconds",
+    "HTTP request latency",
     ["endpoint"]
 )
 
@@ -66,6 +68,28 @@ ERROR_ANALYSIS_COUNT = Counter(
     "Total error analysis requests",
     ["source"]
 )
+
+# =========================
+# Global Request Tracking
+# =========================
+@app.before_request
+def start_timer():
+    request.start_time = time.time()
+
+@app.after_request
+def record_metrics(response):
+    resp_time = time.time() - getattr(request, "start_time", time.time())
+    endpoint = request.path
+
+    REQUEST_COUNT.labels(
+        request.method,
+        endpoint,
+        response.status_code
+    ).inc()
+
+    REQUEST_LATENCY.labels(endpoint=endpoint).observe(resp_time)
+
+    return response
 
 # =========================
 # Rule matcher
@@ -112,7 +136,6 @@ Error:
         raise ValueError("Empty AI response")
 
     text = response.text.strip()
-
     start = text.find("{")
     end = text.rfind("}") + 1
 
@@ -126,7 +149,6 @@ Error:
 # =========================
 @app.route("/health", methods=["GET"])
 def health():
-    REQUEST_COUNT.labels(method="GET", endpoint="/health").inc()
     return jsonify({
         "status": "ok",
         "ai_available": GEMINI_AVAILABLE
@@ -137,86 +159,83 @@ def health():
 # =========================
 @app.route("/metrics")
 def metrics():
-    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 # =========================
 # Main API Route
 # =========================
 @app.route("/analyze-error", methods=["POST"])
 def analyze_error():
-    with REQUEST_LATENCY.labels(endpoint="/analyze-error").time():
-        REQUEST_COUNT.labels(method="POST", endpoint="/analyze-error").inc()
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({
+            "success": False,
+            "message": "Invalid JSON payload"
+        }), 400
 
-        try:
-            data = request.get_json(force=True)
-        except Exception:
-            return jsonify({
-                "success": False,
-                "message": "Invalid JSON payload"
-            }), 400
+    error_text = str(data.get("error", "")).strip()
 
-        error_text = str(data.get("error", "")).strip()
+    if not error_text:
+        return jsonify({
+            "success": False,
+            "message": "No error provided"
+        }), 400
 
-        if not error_text:
-            return jsonify({
-                "success": False,
-                "message": "No error provided"
-            }), 400
-
-        # -------------------------
-        # Rule-based FIRST
-        # -------------------------
-        rule = match_rule(error_text)
-        if rule:
-            ERROR_ANALYSIS_COUNT.labels(source="rule-engine").inc()
-            return jsonify({
-                "success": True,
-                "error_category": rule["category"],
-                "source": "rule-engine",
-                "summary": rule["summary"],
-                "why_it_happened": rule["why_it_happened"],
-                "how_to_fix": rule["how_to_fix"],
-                "real_world_tip": rule["real_world_tip"]
-            })
-
-        # -------------------------
-        # AI fallback
-        # -------------------------
-        if GEMINI_AVAILABLE:
-            try:
-                ai = analyze_with_gemini(error_text)
-                ERROR_ANALYSIS_COUNT.labels(source="gemini-ai").inc()
-                return jsonify({
-                    "success": True,
-                    "error_category": "Unknown / AI",
-                    "source": "gemini-ai",
-                    "summary": ai.get("summary", ""),
-                    "why_it_happened": ai.get("why_it_happened", []),
-                    "how_to_fix": ai.get("how_to_fix", []),
-                    "real_world_tip": ai.get("real_world_tip", "")
-                })
-            except Exception as e:
-                logging.warning("AI failed safely: %s", e)
-
-        # -------------------------
-        # FINAL FALLBACK
-        # -------------------------
-        ERROR_ANALYSIS_COUNT.labels(source="fallback").inc()
+    # -------------------------
+    # Rule-based FIRST
+    # -------------------------
+    rule = match_rule(error_text)
+    if rule:
+        ERROR_ANALYSIS_COUNT.labels(source="rule-engine").inc()
         return jsonify({
             "success": True,
-            "error_category": "Unknown",
-            "source": "fallback",
-            "summary": "The error could not be classified automatically.",
-            "why_it_happened": [
-                "The error is uncommon, incomplete, or not yet in the rule base"
-            ],
-            "how_to_fix": [
-                "Check application logs",
-                "Search official documentation",
-                "Add a new rule if this error repeats"
-            ],
-            "real_world_tip": "Production systems improve by converting repeated unknown errors into rules."
+            "error_category": rule["category"],
+            "source": "rule-engine",
+            "summary": rule["summary"],
+            "why_it_happened": rule["why_it_happened"],
+            "how_to_fix": rule["how_to_fix"],
+            "real_world_tip": rule["real_world_tip"]
         })
+
+    # -------------------------
+    # AI fallback
+    # -------------------------
+    if GEMINI_AVAILABLE:
+        try:
+            ai = analyze_with_gemini(error_text)
+            ERROR_ANALYSIS_COUNT.labels(source="gemini-ai").inc()
+            return jsonify({
+                "success": True,
+                "error_category": "Unknown / AI",
+                "source": "gemini-ai",
+                "summary": ai.get("summary", ""),
+                "why_it_happened": ai.get("why_it_happened", []),
+                "how_to_fix": ai.get("how_to_fix", []),
+                "real_world_tip": ai.get("real_world_tip", "")
+            })
+        except Exception as e:
+            logging.warning("AI failed safely: %s", e)
+
+    # -------------------------
+    # FINAL FALLBACK
+    # -------------------------
+    ERROR_ANALYSIS_COUNT.labels(source="fallback").inc()
+    return jsonify({
+        "success": True,
+        "error_category": "Unknown",
+        "source": "fallback",
+        "summary": "The error could not be classified automatically.",
+        "why_it_happened": [
+            "The error is uncommon, incomplete, or not yet in the rule base"
+        ],
+        "how_to_fix": [
+            "Check application logs",
+            "Search official documentation",
+            "Add a new rule if this error repeats"
+        ],
+        "real_world_tip": "Production systems improve by converting repeated unknown errors into rules."
+    })
 
 # =========================
 # Dev run
