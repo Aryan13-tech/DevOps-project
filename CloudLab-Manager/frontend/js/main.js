@@ -1,6 +1,5 @@
 const API_URL = "http://3.238.231.19:5000/analyze-error";
 
-
 const analyzeBtn = document.getElementById("analyzeBtn");
 const errorInput = document.getElementById("errorInput");
 const explanation = document.getElementById("explanation");
@@ -26,7 +25,7 @@ analyzeBtn.addEventListener("click", async () => {
   solutions.innerHTML = "<li>Analyzing...</li>";
 
   try {
-    const res = await fetch(BACKEND_URL, {
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: errorText })

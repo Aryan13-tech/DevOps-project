@@ -54,7 +54,7 @@ pipeline {
             steps {
                 sshagent([SSH_CREDENTIALS]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} << EOF
+                    ssh -o StrictHostKeyChecking=no ubuntu@3.238.231.19 << EOF
                         set -e
                         docker pull ${DOCKERHUB_USER}/${BACK_IMAGE}:${BUILD_TAG}
                         docker pull ${DOCKERHUB_USER}/${FRONT_IMAGE}:${BUILD_TAG}
