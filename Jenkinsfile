@@ -13,7 +13,7 @@ pipeline {
         BACK_IMAGE  = 'cloudlab-backend'
         FRONT_IMAGE = 'cloudlab-frontend'
 
-        EC2_HOST = '18.232.35.230'
+        EC2_HOST = '3.238.231.19'
 
         BACKEND_DIR  = 'CloudLab-Manager/backend'
         FRONTEND_DIR = 'CloudLab-Manager/frontend'
@@ -33,7 +33,9 @@ pipeline {
         stage('Build & Push Images') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    withCredentials([
+                        usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')
+                    ]) {
                         sh 'echo "$PASS" | docker login -u "$USER" --password-stdin'
 
                         dir("${BACKEND_DIR}") {
@@ -54,18 +56,26 @@ pipeline {
             steps {
                 sshagent([SSH_CREDENTIALS]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@3.238.231.19 << EOF
+                    ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} << EOF
                         set -e
+
+                        echo "Pulling latest images..."
                         docker pull ${DOCKERHUB_USER}/${BACK_IMAGE}:${BUILD_TAG}
                         docker pull ${DOCKERHUB_USER}/${FRONT_IMAGE}:${BUILD_TAG}
 
+                        echo "Stopping old containers..."
                         docker rm -f cloudlab-backend cloudlab-frontend || true
 
+                        echo "Starting backend..."
                         docker run -d --name cloudlab-backend -p 5000:5000 ${DOCKERHUB_USER}/${BACK_IMAGE}:${BUILD_TAG}
-                        docker run -d --name cloudlab-frontend -p 80:80 ${DOCKERHUB_USER}/${FRONT_IMAGE}:${BUILD_TAG}
+
+                        echo "Starting frontend on port 8080..."
+                        docker run -d --name cloudlab-frontend -p 8080:80 ${DOCKERHUB_USER}/${FRONT_IMAGE}:${BUILD_TAG}
 
                         sleep 10
                         curl -f http://localhost:5000/health || exit 1
+
+                        echo "Deployment successful!"
 EOF
                     """
                 }
