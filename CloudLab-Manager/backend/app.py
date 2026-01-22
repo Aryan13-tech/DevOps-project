@@ -37,7 +37,7 @@ if GEMINI_API_KEY:
 
         client = genai.Client(api_key=GEMINI_API_KEY)
         GEMINI_AVAILABLE = True
-        logging.info("Gemini AI enabled (free tier / limited)")
+        logging.info("Gemini AI enabled")
     except Exception as e:
         GEMINI_AVAILABLE = False
         logging.warning("Gemini disabled safely: %s", e)
@@ -101,7 +101,7 @@ def match_rule(error_text: str):
     return None
 
 # =========================
-# AI fallback (SAFE)
+# AI fallback
 # =========================
 def analyze_with_gemini(error_text: str):
     if not client or not types:
@@ -155,9 +155,9 @@ def health():
     })
 
 # =========================
-# METRICS ENDPOINT
+# METRICS ENDPOINT ✅ FIXED
 # =========================
-@app.route("/metrics")
+@app.route("/metrics", methods=["GET"])
 def metrics():
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
@@ -182,9 +182,6 @@ def analyze_error():
             "message": "No error provided"
         }), 400
 
-    # -------------------------
-    # Rule-based FIRST
-    # -------------------------
     rule = match_rule(error_text)
     if rule:
         ERROR_ANALYSIS_COUNT.labels(source="rule-engine").inc()
@@ -198,9 +195,6 @@ def analyze_error():
             "real_world_tip": rule["real_world_tip"]
         })
 
-    # -------------------------
-    # AI fallback
-    # -------------------------
     if GEMINI_AVAILABLE:
         try:
             ai = analyze_with_gemini(error_text)
@@ -217,9 +211,6 @@ def analyze_error():
         except Exception as e:
             logging.warning("AI failed safely: %s", e)
 
-    # -------------------------
-    # FINAL FALLBACK
-    # -------------------------
     ERROR_ANALYSIS_COUNT.labels(source="fallback").inc()
     return jsonify({
         "success": True,
@@ -237,8 +228,5 @@ def analyze_error():
         "real_world_tip": "Production systems improve by converting repeated unknown errors into rules."
     })
 
-# =========================
-# Dev run
-# =========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

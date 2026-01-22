@@ -16,7 +16,7 @@ services:
     image: aryansarvaiya13/cloudlab-frontend:latest
     container_name: cloudlab-frontend
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped
