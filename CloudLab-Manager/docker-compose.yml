@@ -2,18 +2,22 @@ version: "3.8"
 
 services:
   backend:
-    image: aryansarvaiya13/cloudlab-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: cloudlab-backend
     ports:
       - "5000:5000"
     env_file:
-      - backend/.env
+      - ./backend/.env
     restart: unless-stopped
     networks:
       - cloudlab-net
 
   frontend:
-    image: aryansarvaiya13/cloudlab-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: cloudlab-frontend
     ports:
       - "8080:80"
