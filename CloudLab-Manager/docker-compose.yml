@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -9,6 +9,8 @@ services:
     env_file:
       - backend/.env
     restart: unless-stopped
+    networks:
+      - cloudlab-net
 
   frontend:
     image: aryansarvaiya13/cloudlab-frontend:latest
@@ -18,3 +20,31 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - cloudlab-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cloudlab-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+    networks:
+      - cloudlab-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cloudlab-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - cloudlab-net
+
+networks:
+  cloudlab-net:
+    driver: bridge
