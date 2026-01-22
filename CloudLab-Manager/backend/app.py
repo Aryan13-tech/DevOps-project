@@ -101,7 +101,7 @@ def match_rule(error_text: str):
     return None
 
 # =========================
-# AI fallback
+# AI fallback (SAFE)
 # =========================
 def analyze_with_gemini(error_text: str):
     if not client or not types:
@@ -155,7 +155,7 @@ def health():
     })
 
 # =========================
-# METRICS ENDPOINT ✅ FIXED
+# METRICS ENDPOINT
 # =========================
 @app.route("/metrics", methods=["GET"])
 def metrics():
@@ -182,6 +182,7 @@ def analyze_error():
             "message": "No error provided"
         }), 400
 
+    # Rule-based FIRST
     rule = match_rule(error_text)
     if rule:
         ERROR_ANALYSIS_COUNT.labels(source="rule-engine").inc()
@@ -195,6 +196,7 @@ def analyze_error():
             "real_world_tip": rule["real_world_tip"]
         })
 
+    # AI fallback
     if GEMINI_AVAILABLE:
         try:
             ai = analyze_with_gemini(error_text)
@@ -211,6 +213,7 @@ def analyze_error():
         except Exception as e:
             logging.warning("AI failed safely: %s", e)
 
+    # Final fallback
     ERROR_ANALYSIS_COUNT.labels(source="fallback").inc()
     return jsonify({
         "success": True,
@@ -228,5 +231,8 @@ def analyze_error():
         "real_world_tip": "Production systems improve by converting repeated unknown errors into rules."
     })
 
+# =========================
+# App Runner
+# =========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
